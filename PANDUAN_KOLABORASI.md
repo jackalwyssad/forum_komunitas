@@ -81,7 +81,7 @@ Pilih salah satu cara:
 1. Buka **pgAdmin** (sudah terinstall bersama PostgreSQL)
 2. Login dengan password PostgreSQL kamu
 3. Klik kanan **"Databases"** → **"Create"** → **"Database"**
-4. Isi nama: **`forum_diskusi`**
+4. Isi nama: **`forum_komunitas`**
 5. Klik **"Save"**
 
 **Cara B — Lewat Terminal (psql):**
@@ -89,7 +89,7 @@ Pilih salah satu cara:
 psql -U postgres
 # Masukkan password PostgreSQL kamu
 
-CREATE DATABASE forum_diskusi;
+CREATE DATABASE forum_komunitas;
 \q
 ```
 
@@ -101,7 +101,7 @@ Buka file **`backend/.env`** dengan text editor, lalu **ubah bagian database**:
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=forum_diskusi
+DB_DATABASE=forum_komunitas
 DB_USERNAME=postgres
 DB_PASSWORD=password_postgresql_kamu
 ```

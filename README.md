@@ -490,7 +490,7 @@ Edit file `.env` dan sesuaikan konfigurasi database PostgreSQL:
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=forum_diskusi
+DB_DATABASE=forum_komunitas
 DB_USERNAME=postgres
 DB_PASSWORD=your_password
 ```
