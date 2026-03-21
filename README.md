@@ -1,4 +1,4 @@
-# 🗣️ Forum Diskusi
+# 🗣️ Forum Komunitas
 
 Aplikasi **Forum Diskusi** berbasis web full-stack yang dibangun menggunakan **Laravel 10** (Backend REST API) dan **React + Vite** (Frontend SPA). Forum ini memiliki fitur lengkap mulai dari autentikasi, CRUD threads, threaded replies dengan @mention, sistem like, notifikasi real-time, dark/light mode, hingga manajemen profil dan avatar.
 
