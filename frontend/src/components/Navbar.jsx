@@ -149,7 +149,10 @@ export default function Navbar() {
 
           <div className={`navbar-nav ${menuOpen ? 'open' : ''}`}>
             <Link to="/" className={isActive('/')} onClick={() => setMenuOpen(false)}>
-              Threads
+              Beranda
+            </Link>
+            <Link to="/forum" className={isActive('/forum')} onClick={() => setMenuOpen(false)}>
+              Forum
             </Link>
             <Link to="/categories" className={isActive('/categories')} onClick={() => setMenuOpen(false)}>
               Kategori

@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
 import ThreadsPage from './pages/ThreadsPage';
 import ThreadDetailPage from './pages/ThreadDetailPage';
 import CreateThreadPage from './pages/CreateThreadPage';
@@ -22,7 +23,8 @@ function App() {
             <Navbar />
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<ThreadsPage />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/forum" element={<ThreadsPage />} />
               <Route path="/threads/:id" element={<ThreadDetailPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/login" element={<LoginPage />} />
