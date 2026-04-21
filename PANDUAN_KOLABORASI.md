@@ -255,7 +255,7 @@ php artisan migrate
 
 git add .
 git commit -m "Menambahkan kolom bio di users"
-git push origin main
+git push origin main 
 ```
 
 **Yang pull:**

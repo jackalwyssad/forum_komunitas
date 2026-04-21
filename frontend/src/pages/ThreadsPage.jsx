@@ -1,26 +1,42 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
+const GUEST_LIMIT = 5;
+
+function SkeletonCard() {
+  return (
+    <div className="forum-card skeleton-card">
+      <div className="skeleton-avatar" />
+      <div style={{ flex: 1 }}>
+        <div className="skeleton-line" style={{ width: '25%', height: '11px', marginBottom: '10px' }} />
+        <div className="skeleton-line" style={{ width: '75%', height: '16px', marginBottom: '8px' }} />
+        <div className="skeleton-line" style={{ width: '55%', height: '12px', marginBottom: '14px' }} />
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="skeleton-line" style={{ width: '55px', height: '11px' }} />
+          <div className="skeleton-line" style={{ width: '55px', height: '11px' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ThreadsPage() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [categories, setCategories] = useState([]);
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [searchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState(searchParams.get('category_id') || '');
-  const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    fetchThreads();
-  }, [page, categoryId]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useEffect(() => { fetchThreads(); }, [page, categoryId, search]);
+  useEffect(() => { fetchCategories(); }, []);
 
   const fetchThreads = async () => {
     setLoading(true);
@@ -28,7 +44,6 @@ export default function ThreadsPage() {
       const params = { page, per_page: 10 };
       if (search) params.search = search;
       if (categoryId) params.category_id = categoryId;
-
       const res = await api.get('/threads', { params });
       setThreads(res.data.data);
       setMeta(res.data.meta);
@@ -43,135 +58,204 @@ export default function ThreadsPage() {
     try {
       const res = await api.get('/categories');
       setCategories(res.data.data);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
-    fetchThreads();
-  };
-
-  const handleCategoryFilter = (catId) => {
-    setCategoryId(catId);
+    setSearch(searchInput);
     setPage(1);
   };
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    const d = new Date(dateStr);
+    const diff = Math.floor((Date.now() - d) / 1000);
+    if (diff < 60) return 'Baru saja';
+    if (diff < 3600) return `${Math.floor(diff / 60)} mnt lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : '?');
+
+  const avatarColors = [
+    'linear-gradient(135deg,#6366f1,#8b5cf6)',
+    'linear-gradient(135deg,#ec4899,#f59e0b)',
+    'linear-gradient(135deg,#10b981,#3b82f6)',
+    'linear-gradient(135deg,#f97316,#ef4444)',
+    'linear-gradient(135deg,#14b8a6,#6366f1)',
+  ];
+  const getAvatarColor = (name) => {
+    if (!name) return avatarColors[0];
+    return avatarColors[name.charCodeAt(0) % avatarColors.length];
+  };
+
+  // Untuk tamu: tampilkan 5 pertama normal, sisanya blur
+  const isGuest = !user;
+  const visibleThreads = isGuest ? threads.slice(0, GUEST_LIMIT) : threads;
+  const blurredThreads = isGuest ? threads.slice(GUEST_LIMIT) : [];
+  const showGatewall = isGuest && (threads.length > GUEST_LIMIT || (meta.total || 0) > GUEST_LIMIT);
+
   return (
-    <div className="container main-content">
-      <div className="page-header">
-        <h1 className="page-title">💬 Forum Diskusi</h1>
+    <div className="fp-page">
+      {/* ── Header ── */}
+      <div className="fp-header container">
+        <div className="fp-header-left">
+          <h1 className="fp-title">Forum Diskusi</h1>
+          <p className="fp-subtitle">Diskusi, berbagi, dan terhubung dengan komunitas</p>
+        </div>
         {user && (
-          <Link to="/threads/create" className="btn btn-primary">
-            + Buat Thread Baru
+          <Link to="/threads/create" className="fp-btn-create" id="create-thread-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Buat Thread
           </Link>
         )}
       </div>
 
-      {/* Filter Bar */}
-      <form className="filter-bar" onSubmit={handleSearch}>
-        <input
-          type="text"
-          className="form-input"
-          placeholder="🔍 Cari thread berdasarkan judul..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          id="search-threads"
-        />
-        <select
-          className="form-select"
-          value={categoryId}
-          onChange={(e) => handleCategoryFilter(e.target.value)}
-          id="filter-category"
-        >
-          <option value="">Semua Kategori</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
-        <button type="submit" className="btn btn-secondary">Cari</button>
-      </form>
+      <div className="fp-body container">
+        {/* ── Search ── */}
+        <form className="fp-search" onSubmit={handleSearch}>
+          <div className="fp-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position:'absolute', left:'14px', color:'var(--text-muted)', pointerEvents:'none' }}>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              id="search-threads"
+              type="text"
+              className="fp-search-input"
+              placeholder="Cari thread..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            {searchInput && (
+              <button type="button" className="fp-search-clear"
+                onClick={() => { setSearchInput(''); setSearch(''); }}>✕</button>
+            )}
+          </div>
+          <button type="submit" className="fp-search-btn">Cari</button>
+        </form>
 
-      {/* Thread List */}
-      {loading ? (
-        <div className="loading"><div className="spinner"></div></div>
-      ) : threads.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📭</div>
-          <h3 className="empty-state-title">Belum ada thread</h3>
-          <p className="empty-state-desc">Jadilah yang pertama memulai diskusi!</p>
-          {user && (
-            <Link to="/threads/create" className="btn btn-primary">Buat Thread</Link>
-          )}
+        {/* ── Category Pills ── */}
+        <div className="fp-cats">
+          <button className={`fp-cat ${categoryId === '' ? 'active' : ''}`} onClick={() => { setCategoryId(''); setPage(1); }}>
+            Semua
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              className={`fp-cat ${categoryId === String(cat.id) ? 'active' : ''}`}
+              onClick={() => { setCategoryId(String(cat.id)); setPage(1); }}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
-      ) : (
-        <>
-          {threads.map((thread) => (
-            <Link to={`/threads/${thread.id}`} key={thread.id} style={{ textDecoration: 'none' }}>
-              <div className="card thread-card">
-                <div className="thread-votes">
-                  <span className="thread-votes-count">{thread.likes_count || 0}</span>
-                  <span className="thread-votes-label">likes</span>
+
+        {/* ── Thread List ── */}
+        <div className="fp-list">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : threads.length === 0 ? (
+            <div className="fp-empty">
+              <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📭</div>
+              <div className="fp-empty-title">Belum ada thread</div>
+              <div className="fp-empty-sub">
+                {search ? `Tidak ada hasil untuk "${search}"` : 'Jadilah yang pertama memulai diskusi!'}
+              </div>
+              {user && <Link to="/threads/create" className="fp-btn-create" style={{ marginTop: '16px' }}>+ Buat Thread</Link>}
+            </div>
+          ) : (
+            <>
+              {/* Thread yang terlihat normal */}
+              {visibleThreads.map((thread, idx) => (
+                <Link to={`/threads/${thread.id}`} key={thread.id} className="fp-card-link"
+                  style={{ animationDelay: `${idx * 0.04}s` }}>
+                  <div className="fp-card">
+                    <div className="fp-card-avatar" style={{ background: getAvatarColor(thread.user?.name) }}>
+                      {getInitial(thread.user?.name)}
+                    </div>
+                    <div className="fp-card-body">
+                      <div className="fp-card-meta">
+                        <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>
+                        <span className="fp-card-time">{formatDate(thread.created_at)}</span>
+                      </div>
+                      <h3 className="fp-card-title">{thread.title}</h3>
+                      <p className="fp-card-excerpt">{thread.content}</p>
+                      <div className="fp-card-footer">
+                        <span className="fp-card-author">oleh <strong>{thread.user?.name}</strong></span>
+                        <div className="fp-card-stats">
+                          <span className="fp-card-stat">❤️ {thread.likes_count || 0}</span>
+                          <span className="fp-card-stat">💬 {thread.replies_count || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <svg className="fp-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </div>
+                </Link>
+              ))}
+
+              {/* Thread yang di-blur untuk tamu */}
+              {blurredThreads.length > 0 && (
+                <div className="fp-blurred-section">
+                  {blurredThreads.map((thread) => (
+                    <div key={thread.id} className="fp-card fp-card-blurred">
+                      <div className="fp-card-avatar" style={{ background: getAvatarColor(thread.user?.name) }}>
+                        {getInitial(thread.user?.name)}
+                      </div>
+                      <div className="fp-card-body">
+                        <div className="fp-card-meta">
+                          <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>
+                        </div>
+                        <h3 className="fp-card-title">{thread.title}</h3>
+                        <p className="fp-card-excerpt">{thread.content}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="thread-content">
-                  <span className="thread-category">{thread.category?.name || 'Umum'}</span>
-                  <h3 className="card-title">{thread.title}</h3>
-                  <p className="thread-excerpt">{thread.content}</p>
-                  <div className="thread-stats">
-                    <span className="thread-stat">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                      {thread.replies_count || 0} balasan
-                    </span>
-                    <span className="thread-stat">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                      {formatDate(thread.created_at)}
-                    </span>
-                    <span className="thread-stat">
-                      oleh <strong style={{ color: 'var(--primary-400)', marginLeft: '4px' }}>{thread.user?.name}</strong>
-                    </span>
+              )}
+
+              {/* Gatewall overlay */}
+              {showGatewall && (
+                <div className="fp-gatewall">
+                  <div className="fp-gatewall-icon">🔒</div>
+                  <h3 className="fp-gatewall-title">Masuk untuk melihat semua diskusi</h3>
+                  <p className="fp-gatewall-sub">
+                    Daftarkan akunmu dan akses semua {meta.total || threads.length}+ thread secara gratis.
+                  </p>
+                  <div className="fp-gatewall-actions">
+                    <Link to="/login" className="fp-btn-create">Masuk</Link>
+                    <Link to="/register" className="fp-btn-outline">Daftar Gratis</Link>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              )}
 
-          {/* Pagination */}
-          {meta.last_page > 1 && (
-            <div className="pagination">
-              <button
-                className="pagination-btn"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                ← Prev
-              </button>
-              {Array.from({ length: meta.last_page }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  className={`pagination-btn ${p === page ? 'active' : ''}`}
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                className="pagination-btn"
-                disabled={page >= meta.last_page}
-                onClick={() => setPage(page + 1)}
-              >
-                Next →
-              </button>
-            </div>
+              {/* Pagination (hanya untuk yang sudah login) */}
+              {user && meta.last_page > 1 && (
+                <div className="fp-pagination">
+                  <button className="fp-page-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Prev</button>
+                  {Array.from({ length: meta.last_page }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === meta.last_page || Math.abs(p - page) <= 1)
+                    .reduce((acc, p, i, arr) => {
+                      if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                      acc.push(p); return acc;
+                    }, [])
+                    .map((p, i) => p === '...' ? (
+                      <span key={i} className="fp-page-dots">…</span>
+                    ) : (
+                      <button key={p} className={`fp-page-num ${p === page ? 'active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+                    ))}
+                  <button className="fp-page-btn" disabled={page >= meta.last_page} onClick={() => setPage(page + 1)}>Next →</button>
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

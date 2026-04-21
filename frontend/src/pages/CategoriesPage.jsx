@@ -40,7 +40,7 @@ export default function CategoriesPage() {
       ) : (
         <div className="categories-grid">
           {categories.map((cat) => (
-            <Link to={`/?category_id=${cat.id}`} key={cat.id} style={{ textDecoration: 'none' }}>
+            <Link to={`/forum?category_id=${cat.id}`} key={cat.id} style={{ textDecoration: 'none' }}>
               <div className="card category-card">
                 <h3 className="category-name">{cat.name}</h3>
                 <p className="category-desc">{cat.description || 'Tidak ada deskripsi'}</p>

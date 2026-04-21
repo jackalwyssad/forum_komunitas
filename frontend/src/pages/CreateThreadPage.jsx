@@ -35,7 +35,7 @@ export default function CreateThreadPage() {
   return (
     <div className="container main-content">
       <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-        <button className="back-link" onClick={() => navigate('/')}>
+        <button className="back-link" onClick={() => navigate('/forum')}>
           ← Kembali ke Forum
         </button>
 
@@ -91,7 +91,7 @@ export default function CreateThreadPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-ghost" onClick={() => navigate('/')}>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate('/forum')}>
                 Batal
               </button>
               <button

@@ -8,15 +8,24 @@ use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
     /**
      * Display a listing of categories.
+     * Tamu (belum login) hanya melihat kategori yang is_public = true.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $categories = Category::withCount('threads')->orderBy('name')->get();
+        $query = Category::withCount('threads')->orderBy('name');
+
+        // Jika tidak terautentikasi, hanya tampilkan kategori publik
+        if (!$request->user()) {
+            $query->where('is_public', true);
+        }
+
+        $categories = $query->get();
 
         return response()->json([
             'data' => CategoryResource::collection($categories),
@@ -50,6 +59,7 @@ class CategoryController extends Controller
 
     /**
      * Update the specified category (admin only).
+     * Termasuk toggle is_public.
      */
     public function update(UpdateCategoryRequest $request, string $id): JsonResponse
     {

@@ -13,6 +13,11 @@ class Category extends Model
     protected $fillable = [
         'name',
         'description',
+        'is_public',
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
     ];
 
     public function threads()

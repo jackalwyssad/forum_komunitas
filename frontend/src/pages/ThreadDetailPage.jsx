@@ -35,7 +35,7 @@ export default function ThreadDetailPage() {
       setThread(res.data.data);
       setReplies(res.data.replies);
     } catch (err) {
-      navigate('/');
+      navigate('/forum');
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ export default function ThreadDetailPage() {
     if (!confirm('Yakin ingin menghapus thread ini?')) return;
     try {
       await api.delete(`/threads/${id}`);
-      navigate('/');
+      navigate('/forum');
     } catch (err) {
       console.error(err);
     }
@@ -211,7 +211,7 @@ export default function ThreadDetailPage() {
   return (
     <div className="container main-content">
       <div className="thread-detail">
-        <button className="back-link" onClick={() => navigate('/')}>
+        <button className="back-link" onClick={() => navigate('/forum')}>
           ← Kembali ke Forum
         </button>
 
