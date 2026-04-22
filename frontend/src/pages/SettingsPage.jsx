@@ -2,6 +2,13 @@ import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
+const BASE_URL = 'https://forumkomunitas.xyz';
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http') || avatar.startsWith('data:')) return avatar;
+  return BASE_URL + avatar;
+};
+
 export default function SettingsPage() {
   const { user, login } = useAuth();
   const fileInputRef = useRef(null);
@@ -26,7 +33,7 @@ export default function SettingsPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Avatar
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
+  const [avatarPreview, setAvatarPreview] = useState(getAvatarUrl(user?.avatar) || null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState('');
 
@@ -110,7 +117,7 @@ export default function SettingsPage() {
       });
 
       setAvatarMessage(res.data.message);
-      setAvatarPreview(res.data.user.avatar);
+      setAvatarPreview(getAvatarUrl(res.data.user.avatar));
       localStorage.setItem('user', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('user-updated'));
     } catch (err) {

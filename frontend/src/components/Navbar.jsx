@@ -4,6 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../api/axios';
 
+const BASE_URL = 'https://forumkomunitas.xyz';
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http')) return avatar;
+  return BASE_URL + avatar;
+};
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -193,7 +200,7 @@ export default function Navbar() {
                       id="profile-menu-btn"
                     >
                       {currentUser.avatar ? (
-                        <img src={currentUser.avatar} alt="Avatar" className="nav-avatar-img" />
+                        <img src={getAvatarUrl(currentUser.avatar)} alt="Avatar" className="nav-avatar-img" />
                       ) : (
                         <div className="nav-avatar">
                           {currentUser.name.charAt(0).toUpperCase()}

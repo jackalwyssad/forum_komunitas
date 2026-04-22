@@ -5,6 +5,40 @@ import { useAuth } from '../context/AuthContext';
 
 const GUEST_LIMIT = 5;
 
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http') || avatar.startsWith('data:')) return avatar;
+  return 'https://forumkomunitas.xyz' + avatar;
+};
+
+const ThreadAvatar = ({ user, style, className }) => {
+  const avatarUrl = getAvatarUrl(user?.avatar);
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={user?.name}
+        className={className || 'fp-card-avatar'}
+        style={{ borderRadius: '50%', objectFit: 'cover', ...style }}
+      />
+    );
+  }
+  const avatarColors = [
+    'linear-gradient(135deg,#6366f1,#8b5cf6)',
+    'linear-gradient(135deg,#ec4899,#f59e0b)',
+    'linear-gradient(135deg,#10b981,#3b82f6)',
+    'linear-gradient(135deg,#f97316,#ef4444)',
+    'linear-gradient(135deg,#14b8a6,#6366f1)',
+  ];
+  const name = user?.name || '';
+  const bg = name ? avatarColors[name.charCodeAt(0) % avatarColors.length] : avatarColors[0];
+  return (
+    <div className={className || 'fp-card-avatar'} style={{ background: bg, ...style }}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+};
+
 function SkeletonCard() {
   return (
     <div className="forum-card skeleton-card">
@@ -77,19 +111,7 @@ export default function ThreadsPage() {
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : '?');
 
-  const avatarColors = [
-    'linear-gradient(135deg,#6366f1,#8b5cf6)',
-    'linear-gradient(135deg,#ec4899,#f59e0b)',
-    'linear-gradient(135deg,#10b981,#3b82f6)',
-    'linear-gradient(135deg,#f97316,#ef4444)',
-    'linear-gradient(135deg,#14b8a6,#6366f1)',
-  ];
-  const getAvatarColor = (name) => {
-    if (!name) return avatarColors[0];
-    return avatarColors[name.charCodeAt(0) % avatarColors.length];
-  };
 
   // Untuk tamu: tampilkan 5 pertama normal, sisanya blur
   const isGuest = !user;
@@ -174,9 +196,7 @@ export default function ThreadsPage() {
                 <Link to={`/threads/${thread.id}`} key={thread.id} className="fp-card-link"
                   style={{ animationDelay: `${idx * 0.04}s` }}>
                   <div className="fp-card">
-                    <div className="fp-card-avatar" style={{ background: getAvatarColor(thread.user?.name) }}>
-                      {getInitial(thread.user?.name)}
-                    </div>
+                    <ThreadAvatar user={thread.user} />
                     <div className="fp-card-body">
                       <div className="fp-card-meta">
                         <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>
@@ -204,9 +224,7 @@ export default function ThreadsPage() {
                 <div className="fp-blurred-section">
                   {blurredThreads.map((thread) => (
                     <div key={thread.id} className="fp-card fp-card-blurred">
-                      <div className="fp-card-avatar" style={{ background: getAvatarColor(thread.user?.name) }}>
-                        {getInitial(thread.user?.name)}
-                      </div>
+                      <ThreadAvatar user={thread.user} />
                       <div className="fp-card-body">
                         <div className="fp-card-meta">
                           <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>

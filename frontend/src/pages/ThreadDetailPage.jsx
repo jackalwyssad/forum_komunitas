@@ -3,6 +3,21 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
+const BASE_URL = 'https://forumkomunitas.xyz';
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http')) return avatar;
+  return BASE_URL + avatar;
+};
+
+const UserAvatar = ({ user, className = 'reply-avatar' }) => {
+  const avatarUrl = getAvatarUrl(user?.avatar);
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt={user?.name} className={className} style={{ borderRadius: '50%', objectFit: 'cover', width: '36px', height: '36px' }} />;
+  }
+  return <div className={className}>{user?.name?.charAt(0).toUpperCase()}</div>;
+};
+
 export default function ThreadDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -268,9 +283,7 @@ export default function ThreadDetailPage() {
               <h1 className="thread-detail-title">{thread.title}</h1>
               <div className="thread-detail-info">
                 <div className="thread-detail-author">
-                  <div className="thread-detail-avatar">
-                    {thread.user?.name?.charAt(0).toUpperCase()}
-                  </div>
+                  <UserAvatar user={thread.user} className="thread-detail-avatar" />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{thread.user?.name}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -331,7 +344,7 @@ export default function ThreadDetailPage() {
 
                 <div className="reply-header">
                   <div className="reply-author">
-                    <div className="reply-avatar">{reply.user?.name?.charAt(0).toUpperCase()}</div>
+                    <UserAvatar user={reply.user} className="reply-avatar" />
                     <div>
                       <span className="reply-name">{reply.user?.name}</span>
                       <span className="reply-time" style={{ marginLeft: '8px' }}>

@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// Otomatis pilih baseURL sesuai environment
+// - Jika diakses dari localhost → pakai backend lokal
+// - Jika diakses dari domain hosting → pakai backend hosting
+const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000/api'
+  : 'https://forumkomunitas.xyz/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

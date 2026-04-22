@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ThreadController;
 use App\Http\Controllers\Api\ReplyController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 
 // Public read-only
 Route::get('/categories', [CategoryController::class, 'index']);

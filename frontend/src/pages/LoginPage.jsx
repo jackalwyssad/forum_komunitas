@@ -59,6 +59,12 @@ export default function LoginPage() {
             />
           </div>
 
+          <div style={{ textAlign: 'right', marginTop: '-8px', marginBottom: '16px' }}>
+            <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--primary)' }}>
+              Lupa password?
+            </Link>
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary btn-lg"
