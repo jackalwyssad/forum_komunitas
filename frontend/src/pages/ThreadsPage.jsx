@@ -113,11 +113,17 @@ export default function ThreadsPage() {
 
 
 
-  // Untuk tamu: tampilkan 5 pertama normal, sisanya blur
+  // Logika visibilitas untuk tamu (guest):
+  // - "Semua" kategori dipilih     → limit 5 thread (current behavior)
+  // - Kategori PUBLIK dipilih      → tampilkan SEMUA thread (tidak dibatasi)
+  // - Kategori PRIVAT dipilih      → limit 5 thread + blur + gatewall
   const isGuest = !user;
-  const visibleThreads = isGuest ? threads.slice(0, GUEST_LIMIT) : threads;
-  const blurredThreads = isGuest ? threads.slice(GUEST_LIMIT) : [];
-  const showGatewall = isGuest && (threads.length > GUEST_LIMIT || (meta.total || 0) > GUEST_LIMIT);
+  const selectedCategory = categories.find(c => String(c.id) === String(categoryId));
+  const isGuestLimited = isGuest && (!categoryId || !selectedCategory?.is_public);
+
+  const visibleThreads = isGuestLimited ? threads.slice(0, GUEST_LIMIT) : threads;
+  const blurredThreads = isGuestLimited ? threads.slice(GUEST_LIMIT) : [];
+  const showGatewall = isGuestLimited && (threads.length > GUEST_LIMIT || (meta.total || 0) > GUEST_LIMIT);
 
   return (
     <div className="fp-page">

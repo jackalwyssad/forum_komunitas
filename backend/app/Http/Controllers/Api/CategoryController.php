@@ -18,14 +18,11 @@ class CategoryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Category::withCount('threads')->orderBy('name');
-
-        // Jika tidak terautentikasi, hanya tampilkan kategori publik
-        if (!$request->user()) {
-            $query->where('is_public', true);
-        }
-
-        $categories = $query->get();
+        // Semua user (termasuk guest) melihat semua kategori.
+        // Kontrol akses thread berdasarkan is_public dilakukan di frontend:
+        //   - Kategori publik  → guest bisa lihat semua thread
+        //   - Kategori privat  → guest hanya lihat 5 thread teratas (blurred + gatewall)
+        $categories = Category::withCount('threads')->orderBy('name')->get();
 
         return response()->json([
             'data' => CategoryResource::collection($categories),
