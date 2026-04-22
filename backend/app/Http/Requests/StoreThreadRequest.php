@@ -14,8 +14,8 @@ class StoreThreadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title'       => 'required|string|max:255',
-            'content'     => 'required|string',
+            'title'       => 'required|string|min:10|max:255',
+            'content'     => 'required|string|min:30',
             'category_id' => 'required|uuid|exists:categories,id',
         ];
     }
@@ -24,7 +24,10 @@ class StoreThreadRequest extends FormRequest
     {
         return [
             'title.required'       => 'Judul thread wajib diisi.',
+            'title.min'            => 'Judul thread minimal 10 karakter.',
+            'title.max'            => 'Judul thread maksimal 255 karakter.',
             'content.required'     => 'Konten thread wajib diisi.',
+            'content.min'          => 'Konten thread minimal 30 karakter.',
             'category_id.required' => 'Kategori wajib dipilih.',
             'category_id.exists'   => 'Kategori tidak ditemukan.',
         ];
