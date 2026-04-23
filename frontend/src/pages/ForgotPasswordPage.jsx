@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import Alert from '../components/Alert';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -43,17 +44,8 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        {success && (
-          <div className="alert alert-success" style={{ marginBottom: '20px' }}>
-            ✅ {success}
-          </div>
-        )}
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: '20px' }}>
-            ⚠ {error}
-          </div>
-        )}
+        <Alert type="success" message={success} onClose={() => setSuccess('')} />
+        <Alert type="error" message={error} onClose={() => setError('')} />
 
         {!success && (
           <form onSubmit={handleSubmit} id="forgot-password-form">

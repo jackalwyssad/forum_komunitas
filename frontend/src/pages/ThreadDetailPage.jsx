@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const BASE_URL = 'https://forumkomunitas.xyz';
 const getAvatarUrl = (avatar) => {
@@ -37,6 +38,10 @@ export default function ThreadDetailPage() {
   const [replyingTo, setReplyingTo] = useState(null); // { id, userName }
   const replyFormRef = useRef(null);
   const replyInputRef = useRef(null);
+
+  // Confirm dialogs
+  const [confirmThread, setConfirmThread] = useState(false);
+  const [confirmReply, setConfirmReply] = useState({ open: false, id: null });
 
   useEffect(() => {
     fetchThread();
@@ -119,7 +124,11 @@ export default function ThreadDetailPage() {
   };
 
   const handleDeleteThread = async () => {
-    if (!confirm('Yakin ingin menghapus thread ini?')) return;
+    setConfirmThread(true);
+  };
+
+  const confirmDeleteThread = async () => {
+    setConfirmThread(false);
     try {
       await api.delete(`/threads/${id}`);
       navigate('/forum');
@@ -149,35 +158,28 @@ export default function ThreadDetailPage() {
   };
 
   const handleDeleteReply = async (replyId) => {
-    if (!confirm('Yakin ingin menghapus reply ini? Semua balasan di bawahnya juga akan terhapus.')) return;
+    setConfirmReply({ open: true, id: replyId });
+  };
+
+  const confirmDeleteReply = async () => {
+    const replyId = confirmReply.id;
+    setConfirmReply({ open: false, id: null });
     try {
       await api.delete(`/replies/${replyId}`);
-
-      // Collect all descendant IDs recursively
       const getDescendantIds = (parentId) => {
-        const childIds = replies
-          .filter((r) => r.parent_id === parentId)
-          .map((r) => r.id);
+        const childIds = replies.filter((r) => r.parent_id === parentId).map((r) => r.id);
         let allIds = [...childIds];
-        childIds.forEach((cid) => {
-          allIds = [...allIds, ...getDescendantIds(cid)];
-        });
+        childIds.forEach((cid) => { allIds = [...allIds, ...getDescendantIds(cid)]; });
         return allIds;
       };
-
       const idsToRemove = [replyId, ...getDescendantIds(replyId)];
-      const remaining = replies.filter((r) => !idsToRemove.includes(r.id));
-      setReplies(remaining);
+      setReplies(replies.filter((r) => !idsToRemove.includes(r.id)));
       setThread((prev) => ({
         ...prev,
         replies_count: Math.max((prev.replies_count || idsToRemove.length) - idsToRemove.length, 0),
       }));
-
-      // Refresh notification badge
       window.dispatchEvent(new Event('notif-updated'));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const startEditReply = (reply) => {
@@ -464,6 +466,26 @@ export default function ThreadDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Confirm: Delete Thread */}
+      <ConfirmDialog
+        isOpen={confirmThread}
+        title="Hapus Thread"
+        message="Yakin ingin menghapus thread ini? Tindakan ini tidak dapat dibatalkan."
+        variant="danger"
+        onConfirm={confirmDeleteThread}
+        onCancel={() => setConfirmThread(false)}
+      />
+
+      {/* Confirm: Delete Reply */}
+      <ConfirmDialog
+        isOpen={confirmReply.open}
+        title="Hapus Balasan"
+        message="Yakin ingin menghapus balasan ini? Semua balasan di bawahnya juga akan terhapus."
+        variant="danger"
+        onConfirm={confirmDeleteReply}
+        onCancel={() => setConfirmReply({ open: false, id: null })}
+      />
     </div>
   );
 }

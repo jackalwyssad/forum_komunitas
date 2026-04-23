@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -10,6 +11,7 @@ export default function AdminCategoriesPage() {
   const [errors, setErrors] = useState({});
   const [formLoading, setFormLoading] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, id: null });
 
   useEffect(() => { fetchCategories(); }, []);
 
@@ -58,7 +60,12 @@ export default function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Yakin ingin menghapus kategori ini? Semua thread di dalamnya juga akan terhapus.')) return;
+    setConfirmDialog({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmDialog.id;
+    setConfirmDialog({ open: false, id: null });
     try {
       await api.delete(`/categories/${id}`);
       fetchCategories();
@@ -224,6 +231,15 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       )}
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.open}
+        title="Hapus Kategori"
+        message="Yakin ingin menghapus kategori ini? Semua thread di dalamnya juga akan terhapus."
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDialog({ open: false, id: null })}
+      />
     </div>
   );
 }

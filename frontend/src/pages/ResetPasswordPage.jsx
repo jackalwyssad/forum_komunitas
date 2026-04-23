@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../api/axios';
+import Alert from '../components/Alert';
+import PasswordInput from '../components/PasswordInput';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -80,18 +82,11 @@ export default function ResetPasswordPage() {
           <p className="auth-subtitle">Masukkan password baru untuk akun Anda.</p>
         </div>
 
-        {success && (
-          <div className="alert alert-success" style={{ marginBottom: '20px' }}>
-            ✅ {success} <br />
-            <small>Mengalihkan ke halaman login...</small>
-          </div>
-        )}
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: '20px' }}>
-            ⚠ {error}
-          </div>
-        )}
+        <Alert
+          type="success"
+          message={success ? `${success} — Mengalihkan ke halaman login...` : ''}
+        />
+        <Alert type="error" message={error} onClose={() => setError('')} />
 
         {!success && (
           <form onSubmit={handleSubmit} id="reset-password-form">
@@ -111,15 +106,12 @@ export default function ResetPasswordPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="reset-password">Password Baru</label>
-              <input
+              <PasswordInput
                 id="reset-password"
-                type="password"
-                className="form-input"
                 placeholder="Minimal 8 karakter"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                autoFocus
               />
               {errors.password && <p className="form-error">{errors.password[0]}</p>}
             </div>
@@ -128,10 +120,8 @@ export default function ResetPasswordPage() {
               <label className="form-label" htmlFor="reset-password-confirm">
                 Konfirmasi Password Baru
               </label>
-              <input
+              <PasswordInput
                 id="reset-password-confirm"
-                type="password"
-                className="form-input"
                 placeholder="Ulangi password baru"
                 value={form.password_confirmation}
                 onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })}

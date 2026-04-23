@@ -1,6 +1,9 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Alert from '../components/Alert';
+import PasswordInput from '../components/PasswordInput';
 
 const BASE_URL = 'https://forumkomunitas.xyz';
 const getAvatarUrl = (avatar) => {
@@ -35,7 +38,10 @@ export default function SettingsPage() {
   // Avatar
   const [avatarPreview, setAvatarPreview] = useState(getAvatarUrl(user?.avatar) || null);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [avatarMessage, setAvatarMessage] = useState('');
+  const [avatarMessage, setAvatarMessage] = useState({ text: '', type: 'success' });
+
+  // Confirm delete avatar
+  const [confirmAvatar, setConfirmAvatar] = useState(false);
 
   // Refresh user data in context
   const refreshUser = async () => {
@@ -116,13 +122,13 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setAvatarMessage(res.data.message);
+      setAvatarMessage({ text: res.data.message, type: 'success' });
       setAvatarPreview(getAvatarUrl(res.data.user.avatar));
       localStorage.setItem('user', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('user-updated'));
     } catch (err) {
       const msg = err.response?.data?.errors?.avatar?.[0] || err.response?.data?.message || 'Upload gagal.';
-      setAvatarMessage(msg);
+      setAvatarMessage({ text: msg, type: 'error' });
       setAvatarPreview(user?.avatar || null);
     } finally {
       setAvatarLoading(false);
@@ -130,18 +136,22 @@ export default function SettingsPage() {
   };
 
   const handleRemoveAvatar = async () => {
-    if (!confirm('Yakin ingin menghapus foto profil?')) return;
+    setConfirmAvatar(true);
+  };
+
+  const confirmRemoveAvatar = async () => {
+    setConfirmAvatar(false);
     setAvatarLoading(true);
-    setAvatarMessage('');
+    setAvatarMessage({ text: '', type: 'success' });
 
     try {
       const res = await api.delete('/profile/avatar');
       setAvatarPreview(null);
-      setAvatarMessage(res.data.message);
+      setAvatarMessage({ text: res.data.message, type: 'success' });
       localStorage.setItem('user', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('user-updated'));
     } catch (err) {
-      setAvatarMessage('Gagal menghapus foto.');
+      setAvatarMessage({ text: 'Gagal menghapus foto.', type: 'error' });
     } finally {
       setAvatarLoading(false);
     }
@@ -211,12 +221,12 @@ export default function SettingsPage() {
                 <p className="form-hint">Format: JPEG, PNG, GIF, WebP. Maksimal 2MB.</p>
               </div>
             </div>
-            {avatarMessage && (
-              <div className={`alert ${avatarMessage.includes('gagal') || avatarMessage.includes('Gagal') ? 'alert-error' : 'alert-success'}`}
-                style={{ marginTop: '16px' }}>
-                {avatarMessage}
-              </div>
-            )}
+            <Alert
+              type={avatarMessage.text?.includes('gagal') || avatarMessage.text?.includes('Gagal') ? 'error' : avatarMessage.type}
+              message={avatarMessage.text}
+              onClose={() => setAvatarMessage({ text: '', type: 'success' })}
+              autoDismiss={4000}
+            />
           </div>
         </div>
 
@@ -227,7 +237,7 @@ export default function SettingsPage() {
             Informasi Profil
           </h2>
           <div className="settings-card">
-            {profileSuccess && <div className="alert alert-success">✅ {profileSuccess}</div>}
+            <Alert type="success" message={profileSuccess} autoDismiss={4000} onClose={() => setProfileSuccess('')} />
             <form onSubmit={handleProfileSubmit} id="profile-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="settings-name">Nama Lengkap</label>
@@ -276,14 +286,12 @@ export default function SettingsPage() {
             Ganti Password
           </h2>
           <div className="settings-card">
-            {passwordSuccess && <div className="alert alert-success">✅ {passwordSuccess}</div>}
+            <Alert type="success" message={passwordSuccess} autoDismiss={4000} onClose={() => setPasswordSuccess('')} />
             <form onSubmit={handlePasswordSubmit} id="password-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="current-password">Password Lama</label>
-                <input
+                <PasswordInput
                   id="current-password"
-                  type="password"
-                  className="form-input"
                   placeholder="Masukkan password lama"
                   value={passwordForm.current_password}
                   onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
@@ -296,10 +304,8 @@ export default function SettingsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="new-password">Password Baru</label>
-                <input
+                <PasswordInput
                   id="new-password"
-                  type="password"
-                  className="form-input"
                   placeholder="Minimal 8 karakter"
                   value={passwordForm.password}
                   onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
@@ -312,10 +318,8 @@ export default function SettingsPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="confirm-new-password">Konfirmasi Password Baru</label>
-                <input
+                <PasswordInput
                   id="confirm-new-password"
-                  type="password"
-                  className="form-input"
                   placeholder="Ulangi password baru"
                   value={passwordForm.password_confirmation}
                   onChange={(e) => setPasswordForm({ ...passwordForm, password_confirmation: e.target.value })}
@@ -361,6 +365,15 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      {/* Confirm Remove Avatar */}
+      <ConfirmDialog
+        isOpen={confirmAvatar}
+        title="Hapus Foto Profil"
+        message="Yakin ingin menghapus foto profil? Foto akan diganti dengan inisial nama kamu."
+        variant="warning"
+        onConfirm={confirmRemoveAvatar}
+        onCancel={() => setConfirmAvatar(false)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -69,10 +70,8 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-password">Password</label>
-            <input
+            <PasswordInput
               id="reg-password"
-              type="password"
-              className="form-input"
               placeholder="Minimal 8 karakter"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -83,10 +82,8 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-confirm">Konfirmasi Password</label>
-            <input
+            <PasswordInput
               id="reg-confirm"
-              type="password"
-              className="form-input"
               placeholder="Ulangi password"
               value={form.password_confirmation}
               onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })}
