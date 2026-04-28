@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Reply extends Model
 {
@@ -18,7 +19,7 @@ class Reply extends Model
     ];
 
     /**
-     * Boot: cascade delete children replies and related notifications.
+     * Boot: cascade delete children replies, images, and related notifications.
      */
     protected static function boot()
     {
@@ -27,7 +28,13 @@ class Reply extends Model
         static::deleting(function (Reply $reply) {
             // Recursively delete all child replies first
             foreach ($reply->children as $child) {
-                $child->delete(); // triggers this same event for nested children
+                $child->delete();
+            }
+
+            // Delete reply images from storage
+            foreach ($reply->images as $image) {
+                Storage::disk('public')->delete($image->path);
+                $image->delete();
             }
 
             // Delete all notifications that reference this reply
@@ -53,5 +60,10 @@ class Reply extends Model
     public function children()
     {
         return $this->hasMany(Reply::class, 'parent_id');
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ReplyImage::class);
     }
 }

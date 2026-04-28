@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register/send-otp', [AuthController::class, 'sendOtp']);
+Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
@@ -47,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Threads
     Route::post('/threads', [ThreadController::class, 'store']);
     Route::put('/threads/{thread}', [ThreadController::class, 'update']);
+    Route::put('/threads/{thread}/status', [ThreadController::class, 'updateStatus']);
     Route::delete('/threads/{thread}', [ThreadController::class, 'destroy']);
 
     // Likes

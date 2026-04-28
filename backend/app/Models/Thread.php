@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Thread extends Model
 {
@@ -15,10 +16,11 @@ class Thread extends Model
         'content',
         'user_id',
         'category_id',
+        'status',
     ];
 
     /**
-     * Boot: cascade delete replies, likes, and notifications when thread is deleted.
+     * Boot: cascade delete replies, likes, images, and notifications when thread is deleted.
      */
     protected static function boot()
     {
@@ -32,6 +34,12 @@ class Thread extends Model
 
             // Delete likes
             $thread->likes()->delete();
+
+            // Delete thread images from storage
+            foreach ($thread->images as $image) {
+                Storage::disk('public')->delete($image->path);
+                $image->delete();
+            }
 
             // Delete thread-level notifications
             Notification::where('thread_id', $thread->id)->delete();
@@ -56,6 +64,11 @@ class Thread extends Model
     public function likes()
     {
         return $this->hasMany(Like::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ThreadImage::class);
     }
 
     public function isLikedBy(User $user): bool

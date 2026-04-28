@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../api/axios';
+import api, { STORAGE_URL } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
 const GUEST_LIMIT = 5;
@@ -8,8 +8,11 @@ const GUEST_LIMIT = 5;
 const getAvatarUrl = (avatar) => {
   if (!avatar) return null;
   if (avatar.startsWith('http') || avatar.startsWith('data:')) return avatar;
-  return 'https://forumkomunitas.xyz' + avatar;
+  return STORAGE_URL + avatar;
 };
+
+// Backend now returns full URL via Storage::disk('public')->url()
+const getImgUrl = (img) => img?.url || null;
 
 const ThreadAvatar = ({ user, style, className }) => {
   const avatarUrl = getAvatarUrl(user?.avatar);
@@ -198,32 +201,41 @@ export default function ThreadsPage() {
           ) : (
             <>
               {/* Thread yang terlihat normal */}
-              {visibleThreads.map((thread, idx) => (
-                <Link to={`/threads/${thread.id}`} key={thread.id} className="fp-card-link"
-                  style={{ animationDelay: `${idx * 0.04}s` }}>
-                  <div className="fp-card">
-                    <ThreadAvatar user={thread.user} />
-                    <div className="fp-card-body">
-                      <div className="fp-card-meta">
-                        <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>
-                        <span className="fp-card-time">{formatDate(thread.created_at)}</span>
-                      </div>
-                      <h3 className="fp-card-title">{thread.title}</h3>
-                      <p className="fp-card-excerpt">{thread.content}</p>
-                      <div className="fp-card-footer">
-                        <span className="fp-card-author">oleh <strong>{thread.user?.name}</strong></span>
-                        <div className="fp-card-stats">
-                          <span className="fp-card-stat">❤️ {thread.likes_count || 0}</span>
-                          <span className="fp-card-stat">💬 {thread.replies_count || 0}</span>
+              {visibleThreads.map((thread, idx) => {
+                const firstImg = thread.images?.[0];
+                const firstImgUrl = firstImg ? getImgUrl(firstImg) : null;
+                const statusMap = { solved: { label: '✅ Solved', cls: 'fp-status-solved' }, closed: { label: '🔒 Closed', cls: 'fp-status-closed' } };
+                const statusInfo = statusMap[thread.status];
+                return (
+                  <Link to={`/threads/${thread.id}`} key={thread.id} className="fp-card-link"
+                    style={{ animationDelay: `${idx * 0.04}s` }}>
+                    <div className="fp-card">
+                      <ThreadAvatar user={thread.user} />
+                      <div className="fp-card-body">
+                        <div className="fp-card-meta">
+                          <span className="fp-card-cat">{thread.category?.name || 'Umum'}</span>
+                          {statusInfo && <span className={`fp-status-badge ${statusInfo.cls}`}>{statusInfo.label}</span>}
+                          <span className="fp-card-time">{formatDate(thread.created_at)}</span>
+                        </div>
+                        <h3 className="fp-card-title">{thread.title}</h3>
+                        <p className="fp-card-excerpt">{thread.content}</p>
+                        <div className="fp-card-footer">
+                          <span className="fp-card-author">oleh <strong>{thread.user?.name}</strong></span>
+                          <div className="fp-card-stats">
+                            {thread.images?.length > 0 && <span className="fp-card-stat">🖼 {thread.images.length}</span>}
+                            <span className="fp-card-stat">❤️ {thread.likes_count || 0}</span>
+                            <span className="fp-card-stat">💬 {thread.replies_count || 0}</span>
+                          </div>
                         </div>
                       </div>
+                      {firstImgUrl && <img src={firstImgUrl} alt="" className="fp-card-thumbnail" />}
+                      <svg className="fp-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M9 18l6-6-6-6"/>
+                      </svg>
                     </div>
-                    <svg className="fp-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
 
               {/* Thread yang di-blur untuk tamu */}
               {blurredThreads.length > 0 && (

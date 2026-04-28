@@ -14,6 +14,11 @@ export default function NotificationsPage() {
     fetchNotifications();
   }, []);
 
+  // Sync badge Navbar setiap kali halaman notifikasi dibuka
+  useEffect(() => {
+    window.dispatchEvent(new Event('notif-updated'));
+  }, []);
+
   const fetchNotifications = async (page = 1) => {
     setLoading(true);
     try {
@@ -31,9 +36,11 @@ export default function NotificationsPage() {
     if (notif.is_read) return;
     try {
       await api.put(`/notifications/${notif.id}/read`);
-      setNotifications(notifications.map((n) =>
-        n.id === notif.id ? { ...n, is_read: true } : n
-      ));
+      setNotifications((prev) =>
+        prev.map((n) => n.id === notif.id ? { ...n, is_read: true } : n)
+      );
+      // Update badge di Navbar
+      window.dispatchEvent(new Event('notif-updated'));
     } catch (err) {
       console.error(err);
     }
@@ -42,14 +49,16 @@ export default function NotificationsPage() {
   const markAllAsRead = async () => {
     try {
       await api.put('/notifications/read-all');
-      setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      // Update badge di Navbar
+      window.dispatchEvent(new Event('notif-updated'));
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleNotifClick = (notif) => {
-    markAsRead(notif);
+  const handleNotifClick = async (notif) => {
+    await markAsRead(notif);
     if (notif.thread_id) {
       navigate(`/threads/${notif.thread_id}`);
     }

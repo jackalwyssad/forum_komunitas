@@ -4,11 +4,13 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ReplyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+
         return [
             'id'         => $this->id,
             'content'    => $this->content,
@@ -24,6 +26,12 @@ class ReplyResource extends JsonResource
                     ] : null,
                 ] : null;
             }),
+            'images'     => $this->whenLoaded('images', function () {
+                return $this->images->map(fn($img) => [
+                    'id'  => $img->id,
+                    'url' => Storage::disk('public')->url($img->path),
+                ]);
+            }, []),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
         ];

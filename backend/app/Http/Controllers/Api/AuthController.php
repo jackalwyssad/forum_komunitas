@@ -19,21 +19,111 @@ use Illuminate\Support\Str;
 class AuthController extends Controller
 {
     /**
-     * Register a new user.
+     * Step 1 Registrasi: Validasi data, simpan OTP sementara, kirim email.
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function sendOtp(Request $request): JsonResponse
     {
+        $request->validate([
+            'name'                  => 'required|string|max:255',
+            'email'                 => 'required|email|unique:users,email',
+            'password'              => 'required|min:8|confirmed',
+        ], [
+            'name.required'         => 'Nama wajib diisi.',
+            'email.required'        => 'Email wajib diisi.',
+            'email.email'           => 'Format email tidak valid.',
+            'email.unique'          => 'Email sudah terdaftar.',
+            'password.required'     => 'Password wajib diisi.',
+            'password.min'          => 'Password minimal 8 karakter.',
+            'password.confirmed'    => 'Konfirmasi password tidak cocok.',
+        ]);
+
+        // Hapus OTP lama jika ada
+        \Illuminate\Support\Facades\DB::table('email_otps')->where('email', $request->email)->delete();
+
+        // Generate OTP 6 digit
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        \Illuminate\Support\Facades\DB::table('email_otps')->insert([
+            'name'       => $request->name,
+            'email'      => $request->email,
+            'password'   => $request->password, // plain text, akan di-hash otomatis oleh cast 'hashed' saat User::create()
+            'otp'        => $otp,
+            'expires_at' => \Carbon\Carbon::now()->addMinutes(10),
+            'created_at' => \Carbon\Carbon::now(),
+            'updated_at' => \Carbon\Carbon::now(),
+        ]);
+
+        // Kirim email OTP
+        $name = $request->name;
+        \Illuminate\Support\Facades\Mail::send('emails.otp-verification', ['otp' => $otp, 'name' => $name], function ($mail) use ($request, $name) {
+            $mail->to($request->email, $name)
+                 ->subject('Kode Verifikasi OTP - Forum Komunitas')
+                 ->from(config('mail.from.address'), config('mail.from.name'));
+        });
+
+        return response()->json([
+            'message' => 'Kode OTP telah dikirimkan ke email Anda.',
+        ]);
+    }
+
+    /**
+     * Step 2 Registrasi: Verifikasi OTP, buat akun, kembalikan token.
+     */
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp'   => 'required|string|size:6',
+        ]);
+
+        $record = \Illuminate\Support\Facades\DB::table('email_otps')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record) {
+            return response()->json([
+                'message' => 'Data registrasi tidak ditemukan. Silakan daftar ulang.',
+            ], 422);
+        }
+
+        // Cek kadaluarsa
+        if (\Carbon\Carbon::parse($record->expires_at)->isPast()) {
+            \Illuminate\Support\Facades\DB::table('email_otps')->where('email', $request->email)->delete();
+            return response()->json([
+                'message' => 'Kode OTP sudah kadaluarsa. Silakan daftar ulang.',
+            ], 422);
+        }
+
+        // Cek OTP
+        if ($request->otp !== $record->otp) {
+            return response()->json([
+                'message' => 'Kode OTP tidak valid.',
+            ], 422);
+        }
+
+        // Pastikan email belum terdaftar (double check)
+        if (User::where('email', $record->email)->exists()) {
+            \Illuminate\Support\Facades\DB::table('email_otps')->where('email', $request->email)->delete();
+            return response()->json([
+                'message' => 'Email sudah terdaftar. Silakan login.',
+            ], 422);
+        }
+
+        // Buat user
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => $request->password,
+            'name'     => $record->name,
+            'email'    => $record->email,
+            'password' => $record->password, // sudah di-hash
             'role'     => 'user',
         ]);
+
+        // Hapus record OTP
+        \Illuminate\Support\Facades\DB::table('email_otps')->where('email', $request->email)->delete();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Registrasi berhasil.',
+            'message' => 'Registrasi berhasil! Selamat datang.',
             'user'    => new UserResource($user),
             'token'   => $token,
         ], 201);

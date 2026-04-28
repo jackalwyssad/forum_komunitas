@@ -1,11 +1,16 @@
 import axios from 'axios';
 
-// Otomatis pilih baseURL sesuai environment
-// - Jika diakses dari localhost → pakai backend lokal
-// - Jika diakses dari domain hosting → pakai backend hosting
-const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// API base URL — lokal atau hosting
+const BASE_URL = isLocal
   ? 'http://localhost:8000/api'
   : 'https://forumkomunitas.xyz/api';
+
+// Storage base URL untuk gambar — dipakai seluruh app
+export const STORAGE_URL = isLocal
+  ? 'http://localhost:8000'
+  : 'https://forumkomunitas.xyz';
 
 const api = axios.create({
   baseURL: BASE_URL,

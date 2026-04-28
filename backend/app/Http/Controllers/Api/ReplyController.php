@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreReplyRequest;
 use App\Http\Resources\ReplyResource;
 use App\Models\Reply;
+use App\Models\ReplyImage;
 use App\Models\Thread;
 use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
@@ -14,13 +14,26 @@ use Illuminate\Http\Request;
 class ReplyController extends Controller
 {
     /**
-     * Store a newly created reply.
-     * Creates notifications for:
-     * 1. Thread owner (if replier is not the owner)
-     * 2. Parent reply owner (if replying to someone else's reply)
+     * Store a newly created reply (supports multiple image upload).
      */
-    public function store(StoreReplyRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
+        $request->validate([
+            'content'   => 'required|string',
+            'thread_id' => 'required|exists:threads,id',
+            'parent_id' => 'nullable|exists:replies,id',
+            'images'    => 'nullable|array|max:5',
+            'images.*'  => 'image|mimes:jpeg,png,jpg,gif,webp|max:3072',
+        ], [
+            'content.required'   => 'Balasan wajib diisi.',
+            'thread_id.required' => 'Thread wajib diisi.',
+            'thread_id.exists'   => 'Thread tidak ditemukan.',
+            'images.max'         => 'Maksimal 5 gambar.',
+            'images.*.image'     => 'File harus berupa gambar.',
+            'images.*.mimes'     => 'Format gambar harus jpeg, png, jpg, gif, atau webp.',
+            'images.*.max'       => 'Ukuran setiap gambar maksimal 3MB.',
+        ]);
+
         $reply = Reply::create([
             'content'   => $request->content,
             'user_id'   => $request->user()->id,
@@ -28,11 +41,19 @@ class ReplyController extends Controller
             'parent_id' => $request->parent_id,
         ]);
 
-        $reply->load(['user', 'parent.user']);
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $path = $file->store('replies', 'public');
+                ReplyImage::create(['reply_id' => $reply->id, 'path' => $path]);
+            }
+        }
+
+        $reply->load(['user', 'parent.user', 'images']);
         $sender = $request->user();
         $thread = Thread::find($request->thread_id);
 
-        // Notification 1: Notify thread owner when someone replies to their thread
+        // Notification 1: Notify thread owner
         if ($thread && $thread->user_id !== $sender->id) {
             Notification::create([
                 'user_id'   => $thread->user_id,
@@ -44,13 +65,12 @@ class ReplyController extends Controller
             ]);
         }
 
-        // Notification 2: Notify parent reply owner when someone replies to their reply
+        // Notification 2: Notify parent reply owner
         if ($request->parent_id) {
             $parentReply = Reply::find($request->parent_id);
             if ($parentReply
                 && $parentReply->user_id !== $sender->id
                 && $parentReply->user_id !== ($thread?->user_id)) {
-                // Don't send duplicate notification if parent reply owner is also thread owner
                 Notification::create([
                     'user_id'   => $parentReply->user_id,
                     'sender_id' => $sender->id,
@@ -62,8 +82,6 @@ class ReplyController extends Controller
             } elseif ($parentReply
                 && $parentReply->user_id !== $sender->id
                 && $parentReply->user_id === ($thread?->user_id)) {
-                // Parent reply owner IS the thread owner — already notified via reply_thread
-                // Update the existing notification message to include @mention context
                 $existingNotif = Notification::where('user_id', $parentReply->user_id)
                     ->where('sender_id', $sender->id)
                     ->where('reply_id', $reply->id)
@@ -86,7 +104,6 @@ class ReplyController extends Controller
 
     /**
      * Update the specified reply.
-     * Only the owner can update.
      */
     public function update(Request $request, string $id): JsonResponse
     {
@@ -97,11 +114,38 @@ class ReplyController extends Controller
         }
 
         $request->validate([
-            'content' => 'required|string',
+            'content'            => 'required|string',
+            'remove_image_ids'   => 'nullable|array',
+            'remove_image_ids.*' => 'integer|exists:reply_images,id',
+            'images'             => 'nullable|array|max:5',
+            'images.*'           => 'image|mimes:jpeg,png,jpg,gif,webp|max:3072',
         ]);
 
         $reply->update(['content' => $request->content]);
-        $reply->load(['user', 'parent.user']);
+
+        if ($request->has('remove_image_ids')) {
+            $removeIds = $request->remove_image_ids;
+            $imagesToRemove = ReplyImage::whereIn('id', $removeIds)->where('reply_id', $reply->id)->get();
+            foreach ($imagesToRemove as $img) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($img->path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($img->path);
+                }
+                $img->delete();
+            }
+        }
+
+        $currentImageCount = $reply->images()->count();
+        if ($request->hasFile('images')) {
+            $allowedNewImages = 5 - $currentImageCount;
+            $newImages = array_slice($request->file('images'), 0, $allowedNewImages);
+
+            foreach ($newImages as $file) {
+                $path = $file->store('replies', 'public');
+                ReplyImage::create(['reply_id' => $reply->id, 'path' => $path]);
+            }
+        }
+
+        $reply->load(['user', 'parent.user', 'images']);
 
         return response()->json([
             'message' => 'Reply berhasil diupdate.',
@@ -111,7 +155,6 @@ class ReplyController extends Controller
 
     /**
      * Remove the specified reply.
-     * Owner or admin can delete.
      */
     public function destroy(Request $request, string $id): JsonResponse
     {

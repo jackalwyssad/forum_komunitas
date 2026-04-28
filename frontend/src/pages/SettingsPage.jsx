@@ -262,8 +262,11 @@ export default function SettingsPage() {
                   placeholder="nama@email.com"
                   value={profileForm.email}
                   onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  required
+                  disabled
+                  readOnly
+                  style={{ backgroundColor: 'var(--bg-card)', cursor: 'not-allowed', color: 'var(--text-muted)' }}
                 />
+                <p className="form-hint" style={{ marginTop: '4px' }}>Email tidak dapat diubah.</p>
                 {profileErrors.email && <p className="form-error">{profileErrors.email[0]}</p>}
               </div>
 

@@ -48,8 +48,12 @@ export function AuthProvider({ children }) {
     return u;
   };
 
-  const register = async (name, email, password, password_confirmation) => {
-    const res = await api.post('/register', { name, email, password, password_confirmation });
+  const sendOtp = async (name, email, password, password_confirmation) => {
+    return await api.post('/register/send-otp', { name, email, password, password_confirmation });
+  };
+
+  const verifyOtp = async (email, otp) => {
+    const res = await api.post('/register/verify-otp', { email, otp });
     const { user: u, token } = res.data;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(u));
@@ -71,7 +75,7 @@ export function AuthProvider({ children }) {
   const isAdmin = () => user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, sendOtp, verifyOtp, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

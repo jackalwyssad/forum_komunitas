@@ -114,17 +114,6 @@ export default function Navbar() {
           Forum Diskusi
         </Link>
 
-        {/* Di landing page (belum login): hanya tampil Login + Register */}
-        {isLandingGuest ? (
-          <div className="navbar-right">
-            <Link to="/login" className="nav-link">
-              Login
-            </Link>
-            <Link to="/register" className="btn btn-primary btn-sm">
-              Register
-            </Link>
-          </div>
-        ) : (
           <div className="navbar-right">
             {/* Dark/Light Mode Toggle */}
             <button
@@ -151,6 +140,19 @@ export default function Navbar() {
                 </svg>
               )}
             </button>
+
+            {/* Di landing page (belum login): hanya tampil Login + Register */}
+            {isLandingGuest ? (
+              <>
+                <Link to="/login" className="nav-link">
+                  Login
+                </Link>
+                <Link to="/register" className="btn btn-primary btn-sm">
+                  Register
+                </Link>
+              </>
+            ) : (
+              <>
 
             {/* Notification Bell */}
             {currentUser && (
@@ -272,8 +274,9 @@ export default function Navbar() {
                 </>
               )}
             </div>
+            </>
+            )}
           </div>
-        )}
       </div>
     </nav>
   );
