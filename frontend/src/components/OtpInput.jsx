@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 
 export default function OtpInput({ value, onChange, disabled }) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -29,34 +29,38 @@ export default function OtpInput({ value, onChange, disabled }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', margin: '15px 0' }}>
+    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', margin: '15px 0' }}>
       {otp.map((data, index) => (
-        <input
-          key={index}
-          type="text"
-          maxLength="1"
-          ref={(el) => (inputs.current[index] = el)}
-          value={data}
-          onChange={(e) => handleChange(e, index)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-          disabled={disabled}
-          style={{
-            width: '45px',
-            height: '50px',
-            textAlign: 'center',
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            border: '2px solid var(--border)',
-            borderRadius: '8px',
-            background: disabled ? 'var(--bg-input)' : 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            transition: 'all 0.2s',
-            outline: 'none',
-            cursor: disabled ? 'not-allowed' : 'text'
-          }}
-          onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-        />
+        <Fragment key={index}>
+          <input
+            type="text"
+            maxLength="1"
+            ref={(el) => (inputs.current[index] = el)}
+            value={data}
+            onChange={(e) => handleChange(e, index)}
+            onKeyDown={(e) => handleKeyDown(e, index)}
+            disabled={disabled}
+            style={{
+              width: '45px',
+              height: '50px',
+              textAlign: 'center',
+              fontSize: '1.5rem',
+              fontWeight: '600',
+              border: '2px solid var(--border-color)',
+              borderRadius: '8px',
+              background: disabled ? 'var(--bg-card)' : 'var(--bg-input)',
+              color: 'var(--text-primary)',
+              transition: 'all 0.2s',
+              outline: 'none',
+              cursor: disabled ? 'not-allowed' : 'text'
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--primary-500)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+          />
+          {index === 2 && (
+            <div style={{ width: '15px', height: '3px', background: 'var(--text-muted)', borderRadius: '2px' }} />
+          )}
+        </Fragment>
       ))}
     </div>
   );
