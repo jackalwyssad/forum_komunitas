@@ -6,6 +6,8 @@ const TITLE_MIN = 10;
 const TITLE_MAX = 255;
 const CONTENT_MIN = 30;
 const MAX_IMAGES = 5;
+const MAX_IMAGE_SIZE_MB = 1; // 1MB per gambar → total 5 gambar = 5MB
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 export default function CreateThreadPage() {
   const navigate = useNavigate();
@@ -25,10 +27,20 @@ export default function CreateThreadPage() {
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files);
     const remaining = MAX_IMAGES - images.length;
+    const oversized = files.filter((f) => f.size > MAX_IMAGE_SIZE_BYTES);
+    if (oversized.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        images: [`Gambar "${oversized[0].name}" melebihi batas ${MAX_IMAGE_SIZE_MB}MB. Setiap gambar maksimal ${MAX_IMAGE_SIZE_MB}MB (total 5 gambar = 5MB).`],
+      }));
+      e.target.value = '';
+      return;
+    }
     const toAdd = files.slice(0, remaining).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
+    setErrors((prev) => { const n = { ...prev }; delete n.images; return n; });
     setImages((prev) => [...prev, ...toAdd]);
     e.target.value = '';
   };
@@ -165,7 +177,7 @@ export default function CreateThreadPage() {
             {/* Upload Foto */}
             <div className="form-group">
               <label className="form-label">
-                Foto (opsional, maks. {MAX_IMAGES})
+                Foto (opsional) — maks. {MAX_IMAGES} gambar, @{MAX_IMAGE_SIZE_MB}MB/gambar (total 5MB)
               </label>
 
               {/* Image Previews */}

@@ -59,6 +59,16 @@ export default function NotificationsPage() {
 
   const handleNotifClick = async (notif) => {
     await markAsRead(notif);
+    // Notif untuk admin: klik langsung ke halaman kelola kategori tab request
+    if (notif.type === 'category_request_new') {
+      navigate('/admin/categories?tab=requests');
+      return;
+    }
+    // Notif untuk user: approved/rejected → ke halaman kategori untuk lihat riwayat
+    if (notif.type === 'category_request_approved' || notif.type === 'category_request_rejected') {
+      navigate('/categories');
+      return;
+    }
     if (notif.thread_id) {
       navigate(`/threads/${notif.thread_id}`);
     }
@@ -66,18 +76,24 @@ export default function NotificationsPage() {
 
   const getNotifIcon = (type) => {
     switch (type) {
-      case 'reply_thread': return '💬';
-      case 'reply_reply': return '↩️';
-      case 'thread_liked': return '❤️';
+      case 'reply_thread':              return '💬';
+      case 'reply_reply':               return '↩️';
+      case 'thread_liked':              return '❤️';
+      case 'category_request_new':      return '💡';
+      case 'category_request_approved': return '✅';
+      case 'category_request_rejected': return '❌';
       default: return '🔔';
     }
   };
 
   const getNotifTypeLabel = (type) => {
     switch (type) {
-      case 'reply_thread': return 'Balasan Thread';
-      case 'reply_reply': return 'Membalas Komentar';
-      case 'thread_liked': return 'Menyukai Thread';
+      case 'reply_thread':              return 'Balasan Thread';
+      case 'reply_reply':               return 'Membalas Komentar';
+      case 'thread_liked':              return 'Menyukai Thread';
+      case 'category_request_new':      return 'Usulan Kategori';
+      case 'category_request_approved': return 'Usulan Disetujui';
+      case 'category_request_rejected': return 'Usulan Ditolak';
       default: return 'Notifikasi';
     }
   };

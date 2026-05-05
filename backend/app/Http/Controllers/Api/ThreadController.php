@@ -55,7 +55,7 @@ class ThreadController extends Controller
             'content'     => 'required|string|min:30',
             'category_id' => 'required|exists:categories,id',
             'images'      => 'nullable|array|max:5',
-            'images.*'    => 'image|mimes:jpeg,png,jpg,gif,webp|max:3072',
+            'images.*'    => 'image|mimes:jpeg,png,jpg,gif,webp|max:1024',
         ], [
             'title.required'       => 'Judul wajib diisi.',
             'title.min'            => 'Judul minimal 10 karakter.',
@@ -66,7 +66,7 @@ class ThreadController extends Controller
             'images.max'           => 'Maksimal 5 gambar.',
             'images.*.image'       => 'File harus berupa gambar.',
             'images.*.mimes'       => 'Format gambar harus jpeg, png, jpg, gif, atau webp.',
-            'images.*.max'         => 'Ukuran setiap gambar maksimal 3MB.',
+            'images.*.max'         => 'Ukuran setiap gambar maksimal 1MB (total 5 gambar = 5MB).',
         ]);
 
         $thread = Thread::create([
@@ -130,7 +130,7 @@ class ThreadController extends Controller
             'content'          => 'sometimes|string|min:30',
             'category_id'      => 'sometimes|exists:categories,id',
             'images'           => 'nullable|array|max:5',
-            'images.*'         => 'image|mimes:jpeg,png,jpg,gif,webp|max:3072',
+            'images.*'         => 'image|mimes:jpeg,png,jpg,gif,webp|max:1024',
             'remove_image_ids' => 'nullable|array',
             'remove_image_ids.*' => 'string',
         ]);

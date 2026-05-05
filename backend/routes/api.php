@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CategoryRequestController;
 use App\Http\Controllers\Api\ThreadController;
 use App\Http\Controllers\Api\ReplyController;
 use App\Http\Controllers\Api\NotificationController;
@@ -64,4 +65,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+    // Category Requests
+    Route::get('/category-requests', [CategoryRequestController::class, 'index']);
+    Route::post('/category-requests', [CategoryRequestController::class, 'store']);
+    Route::post('/category-requests/{id}/approve', [CategoryRequestController::class, 'approve']);
+    Route::post('/category-requests/{id}/reject', [CategoryRequestController::class, 'reject']);
 });
