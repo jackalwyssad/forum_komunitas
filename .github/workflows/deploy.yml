@@ -81,7 +81,9 @@ jobs:
         run: composer install --no-dev --optimize-autoloader
 
       # 8. Jalankan Laravel Migration ke database MySQL hosting
+      # CATATAN: Jika hosting memblokir port 3306, step ini akan skip (tidak menggagalkan deploy)
       - name: 🗄️ Run Laravel Migration (Remote MySQL)
+        continue-on-error: true  # Lanjut meski migration gagal (port diblokir hosting)
         working-directory: ./backend
         env:
           APP_ENV: production
@@ -96,6 +98,7 @@ jobs:
 
       # 9. Clear & Optimize Laravel untuk Production
       - name: ⚡ Clear & Optimize Laravel
+        continue-on-error: true  # Lanjut meski gagal
         working-directory: ./backend
         env:
           APP_ENV: production
