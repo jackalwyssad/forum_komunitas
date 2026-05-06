@@ -38,8 +38,10 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Simpan gambar langsung ke public_html/uploads (di luar server-api)
+            'root' => base_path('../uploads'),
+            // Jadikan URL gambar: https://forumkomunitas.xyz/uploads/...
+            'url' => env('FRONTEND_URL', 'http://localhost:5173').'/uploads',
             'visibility' => 'public',
             'throw' => false,
         ],
