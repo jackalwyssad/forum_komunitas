@@ -100,7 +100,7 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">📂 Kategori</h1>
-        {user && (
+        {user && user.role !== 'admin' && (
           <button
             className="btn btn-primary btn-sm"
             onClick={openModal}
@@ -134,7 +134,7 @@ export default function CategoriesPage() {
       )}
 
       {/* Riwayat Request User */}
-      {user && (
+      {user && user.role !== 'admin' && (
         <div style={{ marginTop: '40px' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-primary)' }}>
             📋 Riwayat Usulan Saya
