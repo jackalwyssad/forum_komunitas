@@ -39,6 +39,44 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('user-updated', handleUserUpdate);
   }, []);
 
+  // Idle timeout (Auto logout)
+  useEffect(() => {
+    if (!user) return; // Hanya jalankan jika user sedang login
+
+    let idleTimer;
+    const IDLE_TIMEOUT_MS = 20 * 60 * 1000; // 20 menit (sesuai config sanctum)
+
+    const handleIdleLogout = () => {
+      logout();
+      alert('Sesi Anda telah berakhir karena tidak ada aktivitas (idle). Silakan login kembali.');
+      window.location.href = '/login';
+    };
+
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(handleIdleLogout, IDLE_TIMEOUT_MS);
+    };
+
+    // Event yang menandakan adanya aktivitas user
+    const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+
+    const handleUserActivity = () => {
+      // Optimasi: tidak setiap ms di-reset, tapi setTimeout sudah cukup ringan
+      resetIdleTimer();
+    };
+
+    // Jalankan pertama kali saat komponen mount atau user berubah
+    resetIdleTimer();
+
+    // Pasang listener
+    events.forEach((event) => window.addEventListener(event, handleUserActivity));
+
+    return () => {
+      clearTimeout(idleTimer);
+      events.forEach((event) => window.removeEventListener(event, handleUserActivity));
+    };
+  }, [user]);
+
   const login = async (email, password) => {
     const res = await api.post('/login', { email, password });
     const { user: u, token } = res.data;

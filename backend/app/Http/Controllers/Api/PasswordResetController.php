@@ -69,11 +69,11 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        // Token kadaluarsa setelah 60 menit
-        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
+        // Token kadaluarsa setelah 10 menit
+        if (Carbon::parse($record->created_at)->addMinutes(10)->isPast()) {
             DB::table('password_reset_tokens')->where('email', $request->email)->delete();
             return response()->json([
-                'message' => 'Link reset password sudah kadaluarsa. Silakan minta link baru.',
+                'message' => 'LINK_EXPIRED',
             ], 422);
         }
 
