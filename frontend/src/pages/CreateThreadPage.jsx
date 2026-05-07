@@ -109,7 +109,7 @@ export default function CreateThreadPage() {
       // LANGKAH 2: Langsung navigasi ke thread — user sudah bisa melihat thread!
       if (images.length > 0) {
         // Beri tanda ke ThreadDetailPage bahwa foto sedang diupload
-        sessionStorage.setItem('thread_uploading_photos', String(threadId));
+        sessionStorage.setItem(`uploading_photos_${threadId}`, '1');
       }
       navigate(`/threads/${threadId}`);
 

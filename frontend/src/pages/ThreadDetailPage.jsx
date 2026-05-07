@@ -212,29 +212,38 @@ export default function ThreadDetailPage() {
 
   useEffect(() => { fetchThread(); fetchCategories(); }, [id]);
 
-  // Setelah navigasi dari halaman baru, cek apakah foto sedang diupload
+  // Cek apakah foto thread ini sedang diupload di background
+  // Kunci sessionStorage TIDAK dihapus sampai foto benar-benar sudah muncul,
+  // sehingga banner tetap muncul meski user navigasi keluar-masuk.
   useEffect(() => {
-    const justCreated = sessionStorage.getItem('thread_uploading_photos');
-    if (justCreated === id) {
-      setPhotosUploading(true);
-      sessionStorage.removeItem('thread_uploading_photos');
-      // Auto-refresh setiap 3 detik selama 30 detik untuk menangkap foto yang baru diupload
-      let attempts = 0;
-      const interval = setInterval(async () => {
-        attempts++;
-        try {
-          const res = await api.get(`/threads/${id}`);
-          const imgs = res.data.data?.images || [];
-          if (imgs.length > 0) {
-            setThread(res.data.data);
-            setPhotosUploading(false);
-            clearInterval(interval);
-          }
-        } catch {}
-        if (attempts >= 10) { setPhotosUploading(false); clearInterval(interval); }
-      }, 3000);
-      return () => clearInterval(interval);
-    }
+    const sessionKey = `uploading_photos_${id}`;
+    const isUploading = sessionStorage.getItem(sessionKey);
+    if (!isUploading) return;
+
+    setPhotosUploading(true);
+
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await api.get(`/threads/${id}`);
+        const imgs = res.data.data?.images || [];
+        if (imgs.length > 0) {
+          // Foto sudah ada — hapus kunci dan sembunyikan banner
+          sessionStorage.removeItem(sessionKey);
+          setThread(res.data.data);
+          setPhotosUploading(false);
+          clearInterval(interval);
+        }
+      } catch {}
+      if (attempts >= 20) {
+        // Timeout 60 detik — anggap upload selesai/gagal
+        sessionStorage.removeItem(sessionKey);
+        setPhotosUploading(false);
+        clearInterval(interval);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
   }, [id]);
 
   // Polling every 10s
