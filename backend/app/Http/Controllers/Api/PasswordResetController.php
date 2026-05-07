@@ -51,6 +51,29 @@ class PasswordResetController extends Controller
         ]);
     }
 
+    public function checkToken(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+        ]);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record || !Hash::check($request->token, $record->token)) {
+            return response()->json(['valid' => false, 'reason' => 'invalid'], 422);
+        }
+
+        if (Carbon::parse($record->created_at)->addMinutes(10)->isPast()) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return response()->json(['valid' => false, 'reason' => 'expired'], 422);
+        }
+
+        return response()->json(['valid' => true]);
+    }
+
     public function resetPassword(Request $request): JsonResponse
     {
         $request->validate([

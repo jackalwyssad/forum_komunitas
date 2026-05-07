@@ -15,6 +15,7 @@ export default function ResetPasswordPage() {
     token: '',
   });
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true); // cek token saat halaman dibuka
   const [success, setSuccess] = useState('');
   const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
@@ -23,9 +24,26 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const token = searchParams.get('token');
     const email = searchParams.get('email');
-    if (token && email) {
-      setForm((prev) => ({ ...prev, token, email }));
+
+    if (!token || !email) {
+      setChecking(false);
+      return;
     }
+
+    setForm((prev) => ({ ...prev, token, email }));
+
+    // Cek ke backend apakah token masih valid saat halaman dibuka
+    api.get(`/check-reset-token?token=${token}&email=${encodeURIComponent(email)}`)
+      .then(() => {
+        setChecking(false); // token valid, tampilkan form
+      })
+      .catch((err) => {
+        const reason = err.response?.data?.reason;
+        if (reason === 'expired' || reason === 'invalid') {
+          setLinkExpired(true);
+        }
+        setChecking(false);
+      });
   }, [searchParams]);
 
   const handleSubmit = async (e) => {
@@ -51,6 +69,18 @@ export default function ResetPasswordPage() {
       setLoading(false);
     }
   };
+
+  // ── Loading saat cek token ───────────────────────────────────────────────
+  if (checking) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔍</div>
+          <p className="auth-subtitle">Memverifikasi link...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Jika token tidak ada di URL ──────────────────────────────────────────
   if (!searchParams.get('token')) {

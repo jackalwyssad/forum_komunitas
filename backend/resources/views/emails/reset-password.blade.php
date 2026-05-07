@@ -40,7 +40,7 @@
         <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
 
         <p style="color: #999; font-size: 12px; line-height: 1.6;">
-            ⏰ Link ini akan <strong>kadaluarsa dalam 60 menit</strong>.<br>
+            ⏰ Link ini akan <strong>kadaluarsa dalam 10 menit</strong>.<br>
             🔒 Jika Anda tidak meminta reset password, abaikan email ini. Akun Anda tetap aman.
         </p>
 

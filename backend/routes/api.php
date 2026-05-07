@@ -20,6 +20,7 @@ Route::post('/register/send-otp', [AuthController::class, 'sendOtp']);
 Route::post('/register/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
+Route::get('/check-reset-token', [PasswordResetController::class, 'checkToken']);
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 
 // Public read-only
