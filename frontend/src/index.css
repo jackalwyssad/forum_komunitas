@@ -3624,6 +3624,7 @@ img {
 .thread-image-grid.count-2 { grid-template-columns: 1fr 1fr; max-height: 280px; }
 .thread-image-grid.count-3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; max-height: 300px; }
 .thread-image-grid.count-3 .thread-image-item:first-child { grid-row: 1 / 3; }
+.thread-image-grid.count-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; max-height: 360px; }
 .thread-image-item {
   overflow: hidden;
   cursor: zoom-in;

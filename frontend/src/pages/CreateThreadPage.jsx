@@ -24,22 +24,65 @@ export default function CreateThreadPage() {
       .catch((err) => console.error(err));
   }, []);
 
-  const handleImageSelect = (e) => {
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200; // Resize maksimal lebar 1200px
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to WebP for best compression ratio at 70% quality
+          canvas.toBlob((blob) => {
+            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+            resolve(newFile);
+          }, 'image/webp', 0.7);
+        };
+      };
+    });
+  };
+
+  const handleImageSelect = async (e) => {
     const files = Array.from(e.target.files);
     const remaining = MAX_IMAGES - images.length;
-    const oversized = files.filter((f) => f.size > MAX_IMAGE_SIZE_BYTES);
+    const toProcess = files.slice(0, remaining);
+
+    // Kompres semua gambar yang dipilih secara bersamaan
+    const compressedFiles = await Promise.all(toProcess.map(file => compressImage(file)));
+
+    const oversized = compressedFiles.filter((f) => f.size > MAX_IMAGE_SIZE_BYTES);
     if (oversized.length > 0) {
       setErrors((prev) => ({
         ...prev,
-        images: [`Gambar "${oversized[0].name}" melebihi batas ${MAX_IMAGE_SIZE_MB}MB. Setiap gambar maksimal ${MAX_IMAGE_SIZE_MB}MB (total 5 gambar = 5MB).`],
+        images: [`Gambar "${oversized[0].name}" masih melebihi batas ${MAX_IMAGE_SIZE_MB}MB setelah kompresi.`],
       }));
       e.target.value = '';
       return;
     }
-    const toAdd = files.slice(0, remaining).map((file) => ({
+
+    const toAdd = compressedFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
+
     setErrors((prev) => { const n = { ...prev }; delete n.images; return n; });
     setImages((prev) => [...prev, ...toAdd]);
     e.target.value = '';
@@ -177,7 +220,7 @@ export default function CreateThreadPage() {
             {/* Upload Foto */}
             <div className="form-group">
               <label className="form-label">
-                Foto (opsional) — maks. {MAX_IMAGES} gambar, @{MAX_IMAGE_SIZE_MB}MB/gambar (total 5MB)
+                Foto (opsional) — maks. {MAX_IMAGES} gambar, @{MAX_IMAGE_SIZE_MB}MB/gambar (total 2.5MB)
               </label>
 
               {/* Image Previews */}

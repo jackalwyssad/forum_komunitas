@@ -48,7 +48,7 @@ const ImageGallery = ({ images }) => {
   const imgs = images.map((img) => ({ ...img, url: getImgUrl(img) }));
   return (
     <>
-      <div className={`thread-image-grid count-${Math.min(imgs.length, 3)}`}>
+      <div className={`thread-image-grid count-${Math.min(imgs.length, 4)}`}>
         {imgs.slice(0, 4).map((img, i) => (
           <div key={img.id} className="thread-image-item" onClick={() => setLb(i)} style={{ position: 'relative' }}>
             <img src={img.url} alt="" />
