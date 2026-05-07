@@ -6,7 +6,7 @@ const TITLE_MIN = 10;
 const TITLE_MAX = 255;
 const CONTENT_MIN = 30;
 const MAX_IMAGES = 5;
-const MAX_IMAGE_SIZE_MB = 0.5; // 500KB per gambar → total 5 gambar = 2.5MB
+const MAX_IMAGE_SIZE_MB = 1; // batas error fallback jika kompresi gagal
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 export default function CreateThreadPage() {
@@ -15,6 +15,7 @@ export default function CreateThreadPage() {
   const [form, setForm] = useState({ title: '', content: '', category_id: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [images, setImages] = useState([]); // { file, preview }
   const fileInputRef = useRef(null);
 
@@ -33,28 +34,23 @@ export default function CreateThreadPage() {
         img.src = event.target.result;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1200; // Resize maksimal lebar 1200px
-          let width = img.width;
-          let height = img.height;
+          // Agresif: resize ke max 800px lebar, kualitas WebP sangat rendah (45%)
+          // Hasil: ~15-60KB per gambar, 5 gambar = ~75-300KB total — upload sangat cepat!
+          const MAX_W = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
 
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to WebP for best compression ratio at 70% quality
           canvas.toBlob((blob) => {
-            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', {
               type: 'image/webp',
               lastModified: Date.now(),
-            });
-            resolve(newFile);
-          }, 'image/webp', 0.7);
+            }));
+          }, 'image/webp', 0.45); // 45% quality — optimal untuk kecepatan upload
         };
       };
     });
@@ -99,6 +95,7 @@ export default function CreateThreadPage() {
     e.preventDefault();
     setErrors({});
     setLoading(true);
+    setUploadProgress(0);
     try {
       const fd = new FormData();
       fd.append('title', form.title);
@@ -108,6 +105,9 @@ export default function CreateThreadPage() {
 
       const res = await api.post('/threads', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        },
       });
       navigate(`/threads/${res.data.data.id}`);
     } catch (err) {
@@ -267,10 +267,29 @@ export default function CreateThreadPage() {
               {errors.images && <p className="form-error">{errors.images[0]}</p>}
             </div>
 
+            {/* Upload Progress Bar */}
+            {loading && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  <span>⬆️ Mengupload thread...</span>
+                  <span style={{ fontWeight: 700, color: 'var(--primary-400)' }}>{uploadProgress}%</span>
+                </div>
+                <div style={{ background: 'var(--border-color)', borderRadius: '999px', height: '6px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${uploadProgress}%`,
+                    background: 'var(--gradient-primary)',
+                    borderRadius: '999px',
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-ghost" onClick={() => navigate('/forum')}>Batal</button>
+              <button type="button" className="btn btn-ghost" onClick={() => navigate('/forum')} disabled={loading}>Batal</button>
               <button type="submit" className="btn btn-primary" disabled={loading} id="submit-thread">
-                {loading ? 'Mempublish...' : '🚀 Publish Thread'}
+                {loading ? `Mempublish... ${uploadProgress}%` : '🚀 Publish Thread'}
               </button>
             </div>
           </form>
