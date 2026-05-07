@@ -46,7 +46,7 @@ return [
     |
     */
 
-    'expiration' => 20,
+    'expiration' => null, // Token tidak expired di server — logout dikendalikan oleh idle timeout frontend (20 menit)
 
     /*
     |--------------------------------------------------------------------------

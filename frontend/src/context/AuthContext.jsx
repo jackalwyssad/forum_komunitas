@@ -20,8 +20,12 @@ export function AuthProvider({ children }) {
           setUser(u);
           localStorage.setItem('user', JSON.stringify(u));
         })
-        .catch(() => {
-          logout();
+        .catch((err) => {
+          // Hanya logout jika token benar-benar INVALID (401)
+          // Jangan logout jika hanya network error sementara (tidak ada internet, timeout, dll)
+          if (err.response?.status === 401) {
+            logout();
+          }
         })
         .finally(() => setLoading(false));
     } else {
