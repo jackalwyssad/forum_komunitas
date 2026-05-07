@@ -23,6 +23,29 @@ Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'
 Route::get('/check-reset-token', [PasswordResetController::class, 'checkToken']);
 Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
 
+// Secret Deploy Route (Untuk dipanggil oleh GitHub Actions)
+Route::post('/deploy/run-migrations', function (\Illuminate\Http\Request $request) {
+    // Pastikan token yang dikirim sama dengan DEPLOY_TOKEN di .env hosting
+    if ($request->input('token') !== env('DEPLOY_TOKEN') || empty(env('DEPLOY_TOKEN'))) {
+        return response()->json(['message' => 'Unauthorized'], 401);
+    }
+    
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        
+        return response()->json([
+            'message' => 'Deploy tasks completed successfully!',
+            'output' => \Illuminate\Support\Facades\Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to run deploy tasks',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
 // Public read-only
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);

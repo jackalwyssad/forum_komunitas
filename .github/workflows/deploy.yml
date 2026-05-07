@@ -68,50 +68,9 @@ jobs:
             **/server-api/**            # 🔒 Jangan sentuh folder backend
             **/.htaccess                # 🔒 Jangan timpa .htaccess yang sudah ada
 
-      # 6. Setup PHP untuk menjalankan artisan migrate
-      - name: ⚙️ Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: pdo, pdo_mysql
-
-      # 7. Install Composer dependencies
-      - name: 📦 Install Composer Dependencies
-        working-directory: ./backend
-        run: composer install --no-dev --optimize-autoloader
-
-      # 8. Jalankan Laravel Migration ke database MySQL hosting
-      # CATATAN: Jika hosting memblokir port 3306, step ini akan skip (tidak menggagalkan deploy)
-      - name: 🗄️ Run Laravel Migration (Remote MySQL)
-        continue-on-error: true  # Lanjut meski migration gagal (port diblokir hosting)
-        working-directory: ./backend
-        env:
-          APP_ENV: production
-          APP_KEY: ${{ secrets.APP_KEY }}
-          DB_CONNECTION: mysql
-          DB_HOST: ${{ secrets.DB_HOST_PROD }}
-          DB_PORT: 3306
-          DB_DATABASE: ${{ secrets.DB_DATABASE_PROD }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME_PROD }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
-        run: php artisan migrate --force
-
-      # 9. Clear & Optimize Laravel untuk Production
-      - name: ⚡ Clear & Optimize Laravel
-        continue-on-error: true  # Lanjut meski gagal
-        working-directory: ./backend
-        env:
-          APP_ENV: production
-          APP_KEY: ${{ secrets.APP_KEY }}
-          DB_CONNECTION: mysql
-          DB_HOST: ${{ secrets.DB_HOST_PROD }}
-          DB_PORT: 3306
-          DB_DATABASE: ${{ secrets.DB_DATABASE_PROD }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME_PROD }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
+      # 6. Jalankan Migration & Optimize via Webhook Rahasia
+      - name: 🚀 Trigger Remote Migration
         run: |
-          php artisan cache:clear
-          php artisan config:clear
-          php artisan route:clear
-          php artisan view:clear
-          php artisan optimize
+          curl -X POST "https://forumkomunitas.xyz/server-api/public/api/deploy/run-migrations" \
+          -H "Content-Type: application/json" \
+          -d "{\"token\": \"${{ secrets.DEPLOY_TOKEN }}\"}"
