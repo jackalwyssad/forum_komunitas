@@ -208,7 +208,34 @@ export default function ThreadDetailPage() {
   const [confirmReply, setConfirmReply] = useState({ open: false, id: null });
   const repliesRef = useRef([]);
 
+  const [photosUploading, setPhotosUploading] = useState(false);
+
   useEffect(() => { fetchThread(); fetchCategories(); }, [id]);
+
+  // Setelah navigasi dari halaman baru, cek apakah foto sedang diupload
+  useEffect(() => {
+    const justCreated = sessionStorage.getItem('thread_uploading_photos');
+    if (justCreated === id) {
+      setPhotosUploading(true);
+      sessionStorage.removeItem('thread_uploading_photos');
+      // Auto-refresh setiap 3 detik selama 30 detik untuk menangkap foto yang baru diupload
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await api.get(`/threads/${id}`);
+          const imgs = res.data.data?.images || [];
+          if (imgs.length > 0) {
+            setThread(res.data.data);
+            setPhotosUploading(false);
+            clearInterval(interval);
+          }
+        } catch {}
+        if (attempts >= 10) { setPhotosUploading(false); clearInterval(interval); }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [id]);
 
   // Polling every 10s
   useEffect(() => {
@@ -461,6 +488,19 @@ export default function ThreadDetailPage() {
             {thread.images?.length > 0 && (
               <div style={{ margin: '16px 0' }}>
                 <ImageGallery images={thread.images} />
+              </div>
+            )}
+
+            {/* Banner: foto sedang diupload di background */}
+            {photosUploading && (!thread.images || thread.images.length === 0) && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '10px 16px', borderRadius: 'var(--radius-sm)',
+                background: '#6366f11a', border: '1px solid #6366f133',
+                margin: '12px 0', fontSize: '0.85rem', color: 'var(--primary-400)',
+              }}>
+                <svg style={{ animation: 'spin 1.2s linear infinite', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                📷 Foto sedang diupload di background... akan muncul sebentar lagi.
               </div>
             )}
 

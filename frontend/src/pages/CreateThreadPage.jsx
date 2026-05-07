@@ -97,19 +97,35 @@ export default function CreateThreadPage() {
     setLoading(true);
     setUploadProgress(0);
     try {
-      const fd = new FormData();
-      fd.append('title', form.title);
-      fd.append('content', form.content);
-      fd.append('category_id', form.category_id);
-      images.forEach((img) => fd.append('images[]', img.file));
-
-      const res = await api.post('/threads', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
-          if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
-        },
+      // LANGKAH 1: Post thread tanpa gambar dulu — ini sangat cepat (<1 detik)
+      const res = await api.post('/threads', {
+        title: form.title,
+        content: form.content,
+        category_id: form.category_id,
       });
-      navigate(`/threads/${res.data.data.id}`);
+
+      const threadId = res.data.data.id;
+
+      // LANGKAH 2: Langsung navigasi ke thread — user sudah bisa melihat thread!
+      if (images.length > 0) {
+        // Beri tanda ke ThreadDetailPage bahwa foto sedang diupload
+        sessionStorage.setItem('thread_uploading_photos', String(threadId));
+      }
+      navigate(`/threads/${threadId}`);
+
+      // LANGKAH 3: Upload gambar di background (tidak memblokir user)
+      if (images.length > 0) {
+        const fd = new FormData();
+        images.forEach((img) => fd.append('images[]', img.file));
+        fd.append('_method', 'PUT');
+        // Fire-and-forget: gagal pun user sudah di thread page
+        api.post(`/threads/${threadId}`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (ev) => {
+            if (ev.total) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+          },
+        }).catch(() => {}); // jika gagal, abaikan saja
+      }
     } catch (err) {
       if (err.response?.data?.errors) setErrors(err.response.data.errors);
     } finally {
