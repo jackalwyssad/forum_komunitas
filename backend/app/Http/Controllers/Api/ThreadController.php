@@ -51,22 +51,20 @@ class ThreadController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
+            'category_id' => 'required|exists:categories,id',
             'title'       => 'required|string|min:10|max:255',
             'content'     => 'required|string|min:30',
-            'category_id' => 'required|exists:categories,id',
             'images'      => 'nullable|array|max:5',
-            'images.*'    => 'image|mimes:jpeg,png,jpg,gif,webp|max:1024',
+            'images.*'    => 'image|mimes:jpeg,png,jpg,gif,webp|max:512',
         ], [
-            'title.required'       => 'Judul wajib diisi.',
+            'category_id.required' => 'Kategori harus dipilih.',
+            'title.required'       => 'Judul diskusi wajib diisi.',
             'title.min'            => 'Judul minimal 10 karakter.',
-            'content.required'     => 'Konten wajib diisi.',
             'content.min'          => 'Konten minimal 30 karakter.',
-            'category_id.required' => 'Kategori wajib dipilih.',
-            'category_id.exists'   => 'Kategori tidak valid.',
             'images.max'           => 'Maksimal 5 gambar.',
             'images.*.image'       => 'File harus berupa gambar.',
             'images.*.mimes'       => 'Format gambar harus jpeg, png, jpg, gif, atau webp.',
-            'images.*.max'         => 'Ukuran setiap gambar maksimal 1MB (total 5 gambar = 5MB).',
+            'images.*.max'         => 'Ukuran setiap gambar maksimal 500KB (total 5 gambar = 2.5MB).',
         ]);
 
         $thread = Thread::create([
@@ -130,9 +128,12 @@ class ThreadController extends Controller
             'content'          => 'sometimes|string|min:30',
             'category_id'      => 'sometimes|exists:categories,id',
             'images'           => 'nullable|array|max:5',
-            'images.*'         => 'image|mimes:jpeg,png,jpg,gif,webp|max:1024',
+            'images.*'         => 'image|mimes:jpeg,png,jpg,gif,webp|max:512',
             'remove_image_ids' => 'nullable|array',
             'remove_image_ids.*' => 'string',
+        ], [
+            'images.max'   => 'Maksimal total gambar pada thread adalah 5.',
+            'images.*.max' => 'Ukuran setiap gambar maksimal 500KB.',
         ]);
 
         $thread->update($request->only('title', 'content', 'category_id'));

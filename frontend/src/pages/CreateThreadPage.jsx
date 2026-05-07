@@ -6,7 +6,7 @@ const TITLE_MIN = 10;
 const TITLE_MAX = 255;
 const CONTENT_MIN = 30;
 const MAX_IMAGES = 5;
-const MAX_IMAGE_SIZE_MB = 1; // 1MB per gambar → total 5 gambar = 5MB
+const MAX_IMAGE_SIZE_MB = 0.5; // 500KB per gambar → total 5 gambar = 2.5MB
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 export default function CreateThreadPage() {
