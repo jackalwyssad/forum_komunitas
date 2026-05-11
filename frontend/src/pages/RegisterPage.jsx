@@ -98,6 +98,12 @@ export default function RegisterPage() {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <button 
+          onClick={() => navigate(-1)} 
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: 0, fontWeight: '500', fontSize: '0.9rem' }}
+        >
+          ← Kembali
+        </button>
         <h1 className="auth-title">Buat Akun Baru</h1>
         <p className="auth-subtitle">Gabung dan mulai berdiskusi</p>
 
