@@ -1,15 +1,14 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/axios';
+import api, { STORAGE_URL } from '../api/axios';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Alert from '../components/Alert';
 import PasswordInput from '../components/PasswordInput';
 
-const BASE_URL = 'https://forumkomunitas.xyz';
 const getAvatarUrl = (avatar) => {
   if (!avatar) return null;
   if (avatar.startsWith('http') || avatar.startsWith('data:')) return avatar;
-  return BASE_URL + avatar;
+  return STORAGE_URL + avatar;
 };
 
 export default function SettingsPage() {
@@ -64,14 +63,18 @@ export default function SettingsPage() {
     setProfileLoading(true);
 
     try {
-      const res = await api.put('/profile', profileForm);
-      setProfileSuccess(res.data.message);
+      const res = await api.put('/profile', { name: profileForm.name });
+      setProfileSuccess(res.data.message || 'Profil berhasil diupdate.');
       const u = res.data.user;
+      // Update form agar nama baru langsung terlihat
+      setProfileForm(prev => ({ ...prev, name: u.name || prev.name }));
       localStorage.setItem('user', JSON.stringify(u));
       window.dispatchEvent(new Event('user-updated'));
     } catch (err) {
       if (err.response?.data?.errors) {
         setProfileErrors(err.response.data.errors);
+      } else {
+        setProfileErrors({ name: [err.response?.data?.message || 'Gagal menyimpan profil.'] });
       }
     } finally {
       setProfileLoading(false);
