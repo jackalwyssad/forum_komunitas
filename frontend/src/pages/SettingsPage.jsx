@@ -108,31 +108,34 @@ export default function SettingsPage() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Preview
+    // Preview langsung sebelum upload
     const reader = new FileReader();
     reader.onload = (ev) => setAvatarPreview(ev.target.result);
     reader.readAsDataURL(file);
 
     // Upload
     setAvatarLoading(true);
-    setAvatarMessage('');
+    setAvatarMessage({ text: '', type: 'success' }); // reset
 
     try {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const res = await api.post('/profile/avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // ⚠️ JANGAN set Content-Type manual — biarkan Axios auto-set
+      // multipart/form-data beserta boundary yang benar
+      const res = await api.post('/profile/avatar', formData);
 
       setAvatarMessage({ text: res.data.message, type: 'success' });
       setAvatarPreview(getAvatarUrl(res.data.user.avatar));
       localStorage.setItem('user', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('user-updated'));
     } catch (err) {
-      const msg = err.response?.data?.errors?.avatar?.[0] || err.response?.data?.message || 'Upload gagal.';
+      const msg = err.response?.data?.errors?.avatar?.[0]
+        || err.response?.data?.message
+        || 'Upload gagal. Pastikan format & ukuran file sesuai.';
       setAvatarMessage({ text: msg, type: 'error' });
-      setAvatarPreview(user?.avatar || null);
+      // Kembalikan preview ke avatar lama
+      setAvatarPreview(getAvatarUrl(user?.avatar) || null);
     } finally {
       setAvatarLoading(false);
     }
