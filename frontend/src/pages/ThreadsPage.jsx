@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api, { STORAGE_URL } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -71,9 +71,39 @@ export default function ThreadsPage() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState(searchParams.get('category_id') || '');
   const [page, setPage] = useState(1);
+  // Ref untuk tracking thread ID terbaru (untuk deteksi thread baru)
+  const latestThreadIdRef = useRef(null);
+  const threadsRef = useRef([]);
 
   useEffect(() => { fetchThreads(); }, [page, categoryId, search]);
   useEffect(() => { fetchCategories(); }, []);
+
+  // Polling 15s — prepend thread baru langsung tanpa menggeser scroll
+  useEffect(() => {
+    // Hanya polling di halaman 1, tanpa filter pencarian
+    if (page !== 1 || search) return;
+    const poll = async () => {
+      try {
+        const params = { page: 1, per_page: 10 };
+        if (categoryId) params.category_id = categoryId;
+        const res = await api.get('/threads', { params });
+        const freshThreads = res.data.data || [];
+        if (latestThreadIdRef.current === null || freshThreads.length === 0) return;
+        const newOnes = freshThreads.filter((t) => t.id > latestThreadIdRef.current);
+        if (newOnes.length > 0) {
+          const newMaxId = Math.max(...newOnes.map((t) => t.id));
+          latestThreadIdRef.current = newMaxId;
+          setThreads((prev) => {
+            const existingIds = new Set(prev.map((t) => t.id));
+            const toAdd = newOnes.filter((t) => !existingIds.has(t.id));
+            return toAdd.length > 0 ? [...toAdd, ...prev] : prev;
+          });
+        }
+      } catch {}
+    };
+    const iv = setInterval(poll, 15000);
+    return () => clearInterval(iv);
+  }, [page, search, categoryId]);
 
   const fetchThreads = async () => {
     setLoading(true);
@@ -82,8 +112,17 @@ export default function ThreadsPage() {
       if (search) params.search = search;
       if (categoryId) params.category_id = categoryId;
       const res = await api.get('/threads', { params });
-      setThreads(res.data.data);
+      const data = res.data.data || [];
+      setThreads(data);
       setMeta(res.data.meta);
+      // Update tracking ref untuk polling thread baru
+      threadsRef.current = data;
+      if (data.length > 0) {
+        const maxId = Math.max(...data.map((t) => t.id));
+        if (latestThreadIdRef.current === null || maxId > latestThreadIdRef.current) {
+          latestThreadIdRef.current = maxId;
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {

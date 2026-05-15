@@ -117,7 +117,7 @@ export default function CreateThreadPage() {
     setLoading(true);
     setUploadProgress(0);
     try {
-      // LANGKAH 1: Post thread tanpa gambar dulu — ini sangat cepat (<1 detik)
+      // LANGKAH 1: Post thread tanpa gambar dulu
       const res = await api.post("/threads", {
         title: form.title,
         content: form.content,
@@ -126,29 +126,23 @@ export default function CreateThreadPage() {
 
       const threadId = res.data.data.id;
 
-      // LANGKAH 2: Langsung navigasi ke thread — user sudah bisa melihat thread!
+      // LANGKAH 2: Upload gambar (blocking — tunggu selesai sebelum navigate)
       if (images.length > 0) {
-        // Beri tanda ke ThreadDetailPage bahwa foto sedang diupload
-        sessionStorage.setItem(`uploading_photos_${threadId}`, "1");
-      }
-      navigate(`/threads/${threadId}`);
-
-      // LANGKAH 3: Upload gambar di background (tidak memblokir user)
-      if (images.length > 0) {
+        setUploadProgress(5);
         const fd = new FormData();
         images.forEach((img) => fd.append("images[]", img.file));
         fd.append("_method", "PUT");
-        // Fire-and-forget: gagal pun user sudah di thread page
-        api
-          .post(`/threads/${threadId}`, fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-            onUploadProgress: (ev) => {
-              if (ev.total)
-                setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-            },
-          })
-          .catch(() => {}); // jika gagal, abaikan saja
+        await api.post(`/threads/${threadId}`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (ev) => {
+            if (ev.total)
+              setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+          },
+        });
       }
+
+      // LANGKAH 3: Navigate setelah semua selesai — thread & gambar sudah siap
+      navigate(`/threads/${threadId}`);
     } catch (err) {
       if (err.response?.data?.errors) setErrors(err.response.data.errors);
     } finally {

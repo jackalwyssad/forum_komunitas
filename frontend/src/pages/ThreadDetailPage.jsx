@@ -184,6 +184,49 @@ function ReplyItem({ reply, allReplies, depth, user, isAdmin, onReplyTo, onEdit,
   const canEdit = user?.id === reply.user?.id && editingId !== reply.id;
   const canDelete = user && (user.id === reply.user?.id || isAdmin());
 
+  // ── Skeleton saat reply sedang dikirim (optimistic pending) ────────────────
+  if (reply._pending) {
+    return (
+      <div className={`reply-tree-item ${depth > 0 ? 'reply-child' : ''}`} style={{ marginLeft: depth > 0 ? `${Math.min(depth, 3) * 20}px` : 0 }}>
+        <div className="reply-card" style={{ opacity: 0.75 }}>
+          {reply.reply_to?.user && (
+            <div className="reply-to-indicator">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+              Membalas <span className="reply-to-name">@{reply.reply_to.user.name}</span>
+            </div>
+          )}
+          <div className="reply-header">
+            <div className="reply-author">
+              <UserAvatar user={reply.user} />
+              <div>
+                <span className="reply-name">{reply.user?.name}</span>
+                <span className="reply-time" style={{ marginLeft: '8px' }}>Baru saja</span>
+              </div>
+            </div>
+          </div>
+          <p className="reply-content">{reply.content}</p>
+          {/* Preview gambar (blob URL) selagi upload */}
+          {reply._previewImages?.length > 0 && (
+            <div className="image-preview-grid" style={{ marginTop: '10px', pointerEvents: 'none' }}>
+              {reply._previewImages.map((src, i) => (
+                <div key={i} className="image-preview-item" style={{ opacity: 0.7 }}>
+                  <img src={src} alt="" />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)', borderRadius: '8px' }}>
+                    <svg style={{ animation: 'spin 1.2s linear infinite' }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            <svg style={{ animation: 'spin 1.2s linear infinite', flexShrink: 0 }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Mengirim balasan...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`reply-tree-item ${depth > 0 ? 'reply-child' : ''}`} style={{ marginLeft: depth > 0 ? `${Math.min(depth, 3) * 20}px` : 0 }}>
       <div className={`reply-card ${reply.parent_id ? 'has-parent' : ''}`} id={`reply-${reply.id}`}>
@@ -294,55 +337,29 @@ export default function ThreadDetailPage() {
   const [threadDeleted, setThreadDeleted] = useState(false);
   const repliesRef = useRef([]);
 
-  const [photosUploading, setPhotosUploading] = useState(false);
-
   useEffect(() => { fetchThread(); fetchCategories(); }, [id]);
 
-  // Cek apakah foto thread ini sedang diupload di background
-  // Kunci sessionStorage TIDAK dihapus sampai foto benar-benar sudah muncul,
-  // sehingga banner tetap muncul meski user navigasi keluar-masuk.
-  useEffect(() => {
-    const sessionKey = `uploading_photos_${id}`;
-    const isUploading = sessionStorage.getItem(sessionKey);
-    if (!isUploading) return;
-
-    setPhotosUploading(true);
-
-    let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts++;
-      try {
-        const res = await api.get(`/threads/${id}`);
-        const imgs = res.data.data?.images || [];
-        if (imgs.length > 0) {
-          // Foto sudah ada — hapus kunci dan sembunyikan banner
-          sessionStorage.removeItem(sessionKey);
-          setThread(res.data.data);
-          setPhotosUploading(false);
-          clearInterval(interval);
-        }
-      } catch {}
-      if (attempts >= 20) {
-        // Timeout 60 detik — anggap upload selesai/gagal
-        sessionStorage.removeItem(sessionKey);
-        setPhotosUploading(false);
-        clearInterval(interval);
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [id]);
-
-  // Polling every 10s — deteksi jika thread dihapus oleh admin
+  // Polling every 10s — deteksi reply baru dari user lain & thread dihapus admin
   useEffect(() => {
     if (!id) return;
     const poll = async () => {
       try {
         const res = await api.get(`/threads/${id}`);
         const fresh = res.data.replies || [];
-        const currentIds = new Set(repliesRef.current.map((r) => r.id));
-        const newReplies = fresh.filter((r) => !currentIds.has(r.id));
+        // Kecualikan pending replies (kiriman user sendiri yg sedang loading)
+        const realIds = new Set(repliesRef.current.filter((r) => !r._pending).map((r) => r.id));
+        const newReplies = fresh.filter((r) => !realIds.has(r.id));
         if (newReplies.length > 0) {
-          setReplies((prev) => { const m = [...prev, ...newReplies]; repliesRef.current = m; return m; });
+          setReplies((prev) => {
+            // Simpan pending di akhir, sisipkan reply nyata sebelumnya
+            const pending = prev.filter((r) => r._pending);
+            const real = prev.filter((r) => !r._pending);
+            const realIds2 = new Set(real.map((r) => r.id));
+            const toAdd = newReplies.filter((r) => !realIds2.has(r.id));
+            const m = [...real, ...toAdd, ...pending];
+            repliesRef.current = m;
+            return m;
+          });
           setThread((prev) => prev ? ({ ...prev, replies_count: (prev.replies_count || 0) + newReplies.length }) : prev);
         }
       } catch (err) {
@@ -397,21 +414,61 @@ export default function ThreadDetailPage() {
   const handleReply = async (e) => {
     e.preventDefault();
     if (!replyContent.trim()) return;
+
+    // Simpan data form sebelum di-clear
+    const savedContent = replyContent;
+    const savedImages = [...replyImages];
+    const savedReplyingTo = replyingTo;
+
+    // Buat pending placeholder — tampil langsung sebagai skeleton
+    const pendingId = `pending_${Date.now()}`;
+    const pendingReply = {
+      id: pendingId,
+      _pending: true,
+      content: savedContent,
+      user: user,
+      created_at: new Date().toISOString(),
+      parent_id: savedReplyingTo?.id || null,
+      images: [],
+      // Preview blob URL agar gambar langsung terlihat meski belum diupload
+      _previewImages: savedImages.map((img) => img.preview),
+      reply_to: savedReplyingTo ? { user: { name: savedReplyingTo.userName } } : null,
+    };
+
+    // Tambahkan pending ke state — muncul langsung
+    setReplies((prev) => { const m = [...prev, pendingReply]; repliesRef.current = m; return m; });
+    setThread((p) => ({ ...p, replies_count: (p.replies_count || 0) + 1 }));
+
+    // Clear form segera agar user bisa mulai tulis balasan baru
+    setReplyContent('');
+    setReplyingTo(null);
+    setReplyImages([]);
+
     setReplyLoading(true);
     try {
       const fd = new FormData();
-      fd.append('content', replyContent);
+      fd.append('content', savedContent);
       fd.append('thread_id', id);
-      if (replyingTo) fd.append('parent_id', replyingTo.id);
-      replyImages.forEach((img) => fd.append('images[]', img.file));
+      if (savedReplyingTo) fd.append('parent_id', savedReplyingTo.id);
+      savedImages.forEach((img) => fd.append('images[]', img.file));
 
       const res = await api.post('/replies', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       const newReply = res.data.data;
-      setReplies((prev) => { const m = [...prev, newReply]; repliesRef.current = m; return m; });
-      setReplyContent(''); setReplyingTo(null); setReplyImages([]);
-      setThread((p) => ({ ...p, replies_count: (p.replies_count || 0) + 1 }));
-    } catch (err) { console.error(err); }
-    finally { setReplyLoading(false); }
+
+      // Ganti pending dengan data asli (beserta gambar yg sudah tersimpan)
+      setReplies((prev) => {
+        const m = prev.map((r) => r.id === pendingId ? newReply : r);
+        repliesRef.current = m;
+        return m;
+      });
+    } catch (err) {
+      console.error(err);
+      // Hapus pending jika gagal
+      setReplies((prev) => { const m = prev.filter((r) => r.id !== pendingId); repliesRef.current = m; return m; });
+      setThread((p) => ({ ...p, replies_count: Math.max((p.replies_count || 1) - 1, 0) }));
+    } finally {
+      setReplyLoading(false);
+    }
   };
 
   // Hapus thread — jika admin hapus thread orang lain, tampilkan modal alasan
@@ -674,19 +731,6 @@ export default function ThreadDetailPage() {
             {thread.images?.length > 0 && (
               <div style={{ margin: '16px 0' }}>
                 <ImageGallery images={thread.images} />
-              </div>
-            )}
-
-            {/* Banner: foto sedang diupload di background */}
-            {photosUploading && (!thread.images || thread.images.length === 0) && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                background: '#6366f11a', border: '1px solid #6366f133',
-                margin: '12px 0', fontSize: '0.85rem', color: 'var(--primary-400)',
-              }}>
-                <svg style={{ animation: 'spin 1.2s linear infinite', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                📷 Foto sedang diupload di background... akan muncul sebentar lagi.
               </div>
             )}
 
