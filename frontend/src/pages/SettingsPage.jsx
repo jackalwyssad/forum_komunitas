@@ -121,9 +121,11 @@ export default function SettingsPage() {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      // ⚠️ JANGAN set Content-Type manual — biarkan Axios auto-set
-      // multipart/form-data beserta boundary yang benar
-      const res = await api.post('/profile/avatar', formData);
+      // Content-Type: undefined → override instance default 'application/json'
+      // agar browser otomatis set 'multipart/form-data; boundary=...'
+      const res = await api.post('/profile/avatar', formData, {
+        headers: { 'Content-Type': undefined },
+      });
 
       setAvatarMessage({ text: res.data.message, type: 'success' });
       setAvatarPreview(getAvatarUrl(res.data.user.avatar));
