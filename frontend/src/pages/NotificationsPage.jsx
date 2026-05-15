@@ -214,10 +214,27 @@ export default function NotificationsPage() {
                     </p>
                   )}
 
-                  {notif.thread && !isDeletedByAdmin(notif.type) && (
-                    <span className="notif-thread-title">📌 {notif.thread.title}</span>
+                  {/* Preview isi balasan atau judul thread (tergantung tipe notif) */}
+                  {!isDeletedByAdmin(notif.type) && (
+                    <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {/* Tampilkan preview isi balasan jika ada */}
+                      {(notif.type === 'reply_thread' || notif.type === 'reply_reply') && notif.reply_preview ? (
+                        <span className="notif-thread-title" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          💬 <span style={{ fontStyle: 'italic' }}>{notif.reply_preview}</span>
+                          {notif.reply_images_count > 0 && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontStyle: 'normal' }}>
+                              · 📷 {notif.reply_images_count} gambar
+                            </span>
+                          )}
+                        </span>
+                      ) : notif.thread ? (
+                        // Fallback: tampilkan judul thread (untuk like, dll)
+                        <span className="notif-thread-title">📌 {notif.thread.title}</span>
+                      ) : null}
+                    </div>
                   )}
-                  <span className="notif-time">{formatTimeAgo(notif.created_at)}</span>
+                  {/* Waktu di baris terpisah — tidak lagi nyambung dengan teks lain */}
+                  <span className="notif-time" style={{ display: 'block', marginTop: '4px' }}>{formatTimeAgo(notif.created_at)}</span>
                 </div>
               </div>
             ))}

@@ -15,7 +15,7 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $notifications = Notification::with(['sender', 'thread'])
+        $notifications = Notification::with(['sender', 'thread', 'reply.images'])
             ->where('user_id', $request->user()->id)
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 20));
