@@ -214,14 +214,33 @@ class ThreadController extends Controller
                 'reason.max'      => 'Alasan maksimal 500 karakter.',
             ]);
 
-            // Kirim notifikasi ke pemilik thread
+            $titleShort = mb_strimwidth($thread->title, 0, 60, '...');
+            $reason     = $request->reason;
+
+            // 1. Kirim notifikasi ke pemilik thread
             Notification::create([
                 'user_id'   => $thread->user_id,
                 'sender_id' => $admin->id,
                 'type'      => 'thread_deleted',
-                'message'   => "menghapus thread Anda \"" . mb_strimwidth($thread->title, 0, 60, '...') . "\". Alasan: " . $request->reason,
-                'thread_id' => null, // thread sudah dihapus
+                'message'   => "menghapus thread Anda \"{$titleShort}\". Alasan: {$reason}",
+                'thread_id' => null,
             ]);
+
+            // 2. Kirim notifikasi ke semua user yang berkomentar di thread (unik, kecuali pemilik & admin)
+            $commenterIds = \App\Models\Reply::where('thread_id', $thread->id)
+                ->whereNotIn('user_id', [$thread->user_id, $admin->id])
+                ->distinct()
+                ->pluck('user_id');
+
+            foreach ($commenterIds as $commenterId) {
+                Notification::create([
+                    'user_id'   => $commenterId,
+                    'sender_id' => $admin->id,
+                    'type'      => 'thread_deleted',
+                    'message'   => "menghapus thread \"{$titleShort}\" tempat kamu berkomentar. Alasan: {$reason}",
+                    'thread_id' => null,
+                ]);
+            }
         }
 
         $thread->delete();
@@ -230,6 +249,7 @@ class ThreadController extends Controller
             'message' => 'Thread berhasil dihapus.',
         ]);
     }
+
 
     /**
      * Like or unlike a thread (toggle).
