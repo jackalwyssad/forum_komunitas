@@ -20,8 +20,8 @@ Proyek "Forum Komunitas" adalah aplikasi forum diskusi berbasis web yang dibangu
 *   `CategoryRequestController.php` → Menangani pengajuan kategori baru oleh user dan persetujuan/penolakan oleh admin. Berinteraksi dengan `CategoryRequest` dan mengirim `Notification` ke user atau admin terkait.
 *   `NotificationController.php` → Menangani pengambilan notifikasi, menghitung notifikasi belum terbaca, dan menandai notifikasi telah dibaca. Memanggil model `Notification`.
 *   `PasswordResetController.php` → Mengatur alur lupa password dari `sendResetLink`, `checkToken`, hingga `resetPassword`. Menggunakan `password_reset_tokens` table dan mengirim email menggunakan view `reset-password`.
-*   `ReplyController.php` → Mengatur balasan thread (`store`, `update`, `destroy`). Mendukung upload gambar (model `ReplyImage`) dan membalas secara hierarki (`parent_id`). Mengirim notifikasi menggunakan model `Notification` ke pemilik thread atau balasan induk.
-*   `ThreadController.php` → Mengelola diskusi utama (CRUD). Mendukung upload multiple images (`ThreadImage`), toggle status (`open`, `solved`, `closed`), dan sistem like (model `Like`). Memanggil fungsi pencarian dan filter kategori.
+*   `ReplyController.php` → Mengatur balasan thread (`store`, `update`, `destroy`). Mendukung upload gambar (model `ReplyImage`) dan membalas secara hierarki (`parent_id`). Mengirim notifikasi menggunakan model `Notification` ke pemilik thread atau balasan induk. Saat admin menghapus reply milik orang lain: validasi `reason` wajib diisi dan notifikasi `reply_deleted` otomatis dikirim ke pemilik reply. Method `adminIndex()` tersedia untuk list semua reply.
+*   `ThreadController.php` → Mengelola diskusi utama (CRUD). Mendukung upload multiple images (`ThreadImage`), toggle status (`open`, `solved`, `closed`), dan sistem like (model `Like`). Memanggil fungsi pencarian dan filter kategori. Saat admin menghapus thread milik orang lain: validasi `reason` wajib diisi, notifikasi `thread_deleted` dikirim ke **pemilik thread** dan **semua user unik yang pernah berkomentar** di thread tersebut.
 *   `Controller.php` → Base controller standar Laravel yang di-extend oleh semua controller di atas.
 
 #### `app/Http/Middleware/`
@@ -42,7 +42,7 @@ Berisi kelas validasi Form Request untuk memisahkan logika validasi dari control
 Berisi transformasi data model menjadi respons JSON yang terstruktur (API Resources):
 *   `CategoryResource.php`: Format data kategori, menyertakan total thread jika di-load.
 *   `NotificationResource.php`: Format data notifikasi, menyertakan data pengirim dan relasi thread/reply.
-*   `ReplyResource.php`: Format data balasan, menyertakan nested user, gambar, dan children replies.
+*   `ReplyResource.php`: Format data balasan, menyertakan nested user, gambar, relasi thread (id & title), dan children replies.
 *   `ThreadResource.php`: Format data thread, menyertakan jumlah likes, jumlah replies, gambar, dan status.
 *   `UserResource.php`: Format profil pengguna.
 
@@ -67,7 +67,7 @@ File migrasi untuk skema database (dijalankan berurutan):
 *   `reset-password.blade.php`: Template email HTML untuk link reset password. Dipanggil dari `PasswordResetController@sendResetLink`.
 
 #### `routes/`
-*   `api.php`: Mendaftarkan semua endpoint API backend. Dibagi menjadi rute publik (login, register, GET threads, GET categories) dan rute protected dengan middleware `auth:sanctum`. Terdapat route webhook `/deploy/run-migrations` untuk CI/CD.
+*   `api.php`: Mendaftarkan semua endpoint API backend. Dibagi menjadi rute publik (login, register, GET threads, GET categories) dan rute protected dengan middleware `auth:sanctum`. Terdapat route webhook `/deploy/run-migrations` untuk CI/CD. Endpoint `DELETE /threads/{id}` dan `DELETE /replies/{id}` kini mewajibkan field `reason` dalam request body jika yang menghapus adalah admin.
 *   `web.php`: Rute dasar web (biasanya mengembalikan tampilan welcome/dokumentasi API).
 
 #### Konfigurasi & Root
@@ -104,11 +104,11 @@ File migrasi untuk skema database (dijalankan berurutan):
 *   `LandingPage.jsx`: Halaman beranda utama menyambut pengunjung.
 *   `LoginPage.jsx`: Halaman masuk pengguna.
 *   `NotFoundPage.jsx`: Tampilan untuk URL yang tidak terdaftar (404).
-*   `NotificationsPage.jsx`: Halaman daftar notifikasi dengan kemampuan menandai sudah dibaca semua.
+*   `NotificationsPage.jsx`: Halaman daftar notifikasi dengan kemampuan menandai sudah dibaca semua. Notifikasi bertipe `thread_deleted` dan `reply_deleted` ditampilkan dengan highlight merah, ikon 🛡️, dan label "Dihapus Admin" — berbeda dari notifikasi biasa.
 *   `RegisterPage.jsx`: Halaman pendaftaran dua langkah: isi form -> kirim OTP -> verifikasi OTP -> sukses.
 *   `ResetPasswordPage.jsx`: Halaman yang diakses dari link email untuk memasukkan password baru.
 *   `SettingsPage.jsx`: Pengaturan profil, upload/hapus foto profil, dan ganti password.
-*   `ThreadDetailPage.jsx`: Halaman interaktif detail thread. Menampilkan hierarki balasan, fitur balas bersarang (reply-to), upload lampiran balasan, aksi like, ubah status thread (solved, closed), edit/delete milik sendiri, dan image lightbox gallery.
+*   `ThreadDetailPage.jsx`: Halaman interaktif detail thread. Menampilkan hierarki balasan, fitur balas bersarang (reply-to), upload lampiran balasan, aksi like, ubah status thread (solved, closed), edit/delete milik sendiri, dan image lightbox gallery. **Fitur moderasi:** Admin yang menghapus konten milik user lain akan mendapatkan modal pilih alasan wajib. Polling 10 detik mendeteksi 404 — jika thread dihapus admin saat user aktif di halaman, tampil overlay merah "Thread Telah Dihapus" dan redirect otomatis ke Forum dalam 4 detik.
 *   `ThreadsPage.jsx`: Halaman daftar seluruh diskusi, dilengkapi fitur pencarian, filter kategori, dan paginasi.
 
 #### File Konfigurasi
@@ -269,6 +269,8 @@ Berikut adalah ilustrasi ketergantungan (dependencies) secara garis besar:
 | **PUT** | `/api/threads/{id}/status` | `auth:sanctum` | `ThreadController@updateStatus` | Ubah status (open, solved, closed) |
 | **POST** | `/api/replies` | `auth:sanctum` | `ReplyController@store` | Membuat balasan thread/komentar |
 | **POST** | `/api/threads/{id}/like` | `auth:sanctum` | `ThreadController@toggleLike` | Toggle like/unlike sebuah diskusi |
+| **DELETE** | `/api/threads/{id}` | `auth:sanctum` | `ThreadController@destroy` | Hapus thread. Admin wajib kirim `reason` (body JSON) jika bukan miliknya — notif dikirim ke pemilik & semua komentator |
+| **DELETE** | `/api/replies/{id}` | `auth:sanctum` | `ReplyController@destroy` | Hapus reply. Admin wajib kirim `reason` (body JSON) jika bukan miliknya — notif dikirim ke pemilik reply |
 | **GET** | `/api/notifications` | `auth:sanctum` | `NotificationController@index` | Ambil riwayat notifikasi user |
 | **POST** | `/api/category-requests` | `auth:sanctum` | `CategoryRequestController@store` | User mengusulkan kategori baru ke admin |
 | **POST** | `/api/categories` | `auth:sanctum` | `CategoryController@store` | (Admin) Buat kategori secara langsung |

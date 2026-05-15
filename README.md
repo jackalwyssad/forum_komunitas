@@ -1,6 +1,6 @@
 # 🗣️ Forum Komunitas
 
-Aplikasi **Forum Diskusi** berbasis web full-stack yang dibangun menggunakan **Laravel 10** (Backend REST API) dan **React + Vite** (Frontend SPA). Forum ini memiliki fitur lengkap mulai dari autentikasi OTP, CRUD threads, upload gambar, pengajuan kategori, threaded replies dengan @mention, sistem like, notifikasi real-time, dark/light mode, hingga manajemen profil.
+Aplikasi **Forum Diskusi** berbasis web full-stack yang dibangun menggunakan **Laravel 10** (Backend REST API) dan **React + Vite** (Frontend SPA). Forum ini memiliki fitur lengkap mulai dari autentikasi OTP, CRUD threads, upload gambar, pengajuan kategori, threaded replies dengan @mention, sistem like, notifikasi real-time, **moderasi konten oleh admin**, dark/light mode, hingga manajemen profil.
 
 ---
 
@@ -50,6 +50,13 @@ Aplikasi **Forum Diskusi** berbasis web full-stack yang dibangun menggunakan **L
 - **Toggle Like** — User bisa like/unlike thread.
 - **Notifikasi Otomatis** — Muncul saat ada balasan di thread kamu, seseorang membalas komentar kamu, atau status pengajuan kategori diupdate.
 - **Badge Unread** — Navbar menampilkan jumlah notifikasi belum dibaca.
+
+### 🛡️ Moderasi Konten oleh Admin
+- **Hapus dengan Alasan Wajib** — Saat admin menghapus thread atau komentar milik user lain, wajib memilih alasan (preset atau kustom) melalui modal khusus.
+- **Notifikasi ke Pemilik Konten** — Pemilik thread/komentar yang dihapus otomatis menerima notifikasi berisi alasan penghapusan.
+- **Notifikasi ke Semua Komentator** — Seluruh user yang pernah berkomentar di thread yang dihapus juga menerima notifikasi.
+- **Auto-Redirect Saat Thread Dihapus** — Jika user sedang berada di halaman thread yang dihapus admin, akan muncul overlay merah "Thread Telah Dihapus" dan otomatis diarahkan kembali ke Forum dalam 4 detik.
+- **Tampilan Notif Hapus** — Di halaman Notifikasi, pesan penghapusan oleh admin ditampilkan dengan highlight merah dan label "Dihapus Admin" agar mudah dikenali.
 
 ### 🌗 Dark/Light Mode & Profil User
 - **Toggle Theme** — Switch antara mode gelap dan terang, disimpan di `localStorage`.
@@ -165,8 +172,8 @@ Forum Diskusi/
 |------|--------|
 | **`AuthController.php`** | Logika autentikasi, registrasi (dengan trigger OTP), profil, dan upload avatar. |
 | **`PasswordResetController.php`** | Mengelola proses permintaan reset password dan verifikasi token/OTP untuk mengubah password. |
-| **`ThreadController.php`** | CRUD Thread, termasuk penanganan upload `ThreadImage` dan optimasi penyimpanan secara background. |
-| **`ReplyController.php`** | CRUD Reply, fitur upload `ReplyImage`, notifikasi balasan (termasuk threaded @mention). |
+| **`ThreadController.php`** | CRUD Thread, upload `ThreadImage`, toggle status, like. Saat admin hapus thread orang lain: validasi `reason` wajib, kirim notifikasi `thread_deleted` ke pemilik thread **dan semua user yang berkomentar**. |
+| **`ReplyController.php`** | CRUD Reply, upload `ReplyImage`, notifikasi balasan threaded. Saat admin hapus reply orang lain: validasi `reason` wajib, kirim notifikasi `reply_deleted` ke pemilik reply. Endpoint `adminIndex()` untuk list semua reply. |
 | **`CategoryController.php`** | Manajemen kategori diskusi untuk ditampilkan kepada user dan CRUD oleh admin. |
 | **`CategoryRequestController.php`** | Pengajuan kategori baru oleh user dan approval/rejection oleh admin. |
 | **`NotificationController.php`** | Mengambil notifikasi user, menghitung *unread count*, dan mark as read. |
@@ -198,14 +205,14 @@ Forum Diskusi/
 |------|--------|
 | **`LandingPage.jsx`** | Halaman depan perkenalan aplikasi sebelum masuk ke forum utama. |
 | **`ThreadsPage.jsx`** | Menampilkan daftar semua thread, integrasi search dan filter kategori. |
-| **`ThreadDetailPage.jsx`** | Menampilkan thread lengkap, daftar balasan, dan form reply (mendukung upload gambar). |
+| **`ThreadDetailPage.jsx`** | Menampilkan thread lengkap, daftar balasan, dan form reply. Admin yang menghapus konten orang lain akan mendapatkan modal alasan. Jika thread dihapus admin saat user masih di halaman ini, muncul overlay otomatis + redirect. |
 | **`CreateThreadPage.jsx`** | Form membuat thread baru dengan lampiran gambar (optimistic upload UI). |
 | **`CategoriesPage.jsx`** | Menampilkan daftar kategori. Termasuk fitur modal/form untuk **mengajukan kategori baru**. |
 | **`AdminCategoriesPage.jsx`** | Dashboard admin mengelola kategori dan mereview **Category Requests**. |
 | **`LoginPage.jsx` & `RegisterPage.jsx`** | Form autentikasi. Register terhubung ke verifikasi OTP sebelum akun aktif. |
 | **`ForgotPasswordPage.jsx` & `ResetPasswordPage.jsx`** | Flow lupa password (meminta OTP ke email, lalu input password baru). |
 | **`SettingsPage.jsx`** | Pengaturan profil dan ganti password. |
-| **`NotificationsPage.jsx`** | List notifikasi aktivitas user. |
+| **`NotificationsPage.jsx`** | List notifikasi aktivitas user. Notifikasi penghapusan oleh admin ditampilkan dengan highlight merah dan label khusus. |
 | **`NotFoundPage.jsx`** | Halaman 404 dinamis lengkap dengan redirect countdown otomatis ke Home. |
 
 #### 🧱 Components (`src/components/`)
@@ -237,6 +244,8 @@ Selain endpoint standar (CRUD), aplikasi memiliki endpoint baru:
 | `POST` | `/api/reset-password` | Eksekusi ganti password dari form lupa password |
 | `POST` | `/api/category-requests` | User ajukan kategori baru |
 | `PUT` | `/api/category-requests/{id}/approve` | Admin setujui pengajuan |
+| `DELETE` | `/api/threads/{id}` | Hapus thread (admin wajib kirim `reason` jika bukan miliknya) |
+| `DELETE` | `/api/replies/{id}` | Hapus reply (admin wajib kirim `reason` jika bukan miliknya) |
 
 ---
 
@@ -301,6 +310,8 @@ Buka browser di `http://localhost:5173`
 - **Z-Index Management dengan Portals**: Komponen overlay seperti Alert dan Dialog menggunakan *React Portals* untuk menjamin komponen berada di top-level DOM demi mencegah isu *z-index stacking context*.
 - **Email Notification Localization**: Email sistem (Reset Password, OTP) sepenuhnya di-localize ke Bahasa Indonesia demi kejelasan pengguna.
 - **Session Timeout & Security**: Reset link memiliki limit kadaluarsa (10 menit) untuk keamanan. Sesi tab/browser ditangani agar persistensi token bekerja sesuai kebijakan privasi forum.
+- **Moderasi Berbasis Alasan**: Setiap penghapusan konten oleh admin wajib disertai alasan yang dipilih via modal (preset 5 pilihan + kustom). Alasan dikirim ke backend sebagai parameter `reason` dalam body DELETE request, lalu backend membuat notifikasi otomatis ke seluruh pihak terdampak.
+- **Deteksi Thread Dihapus Real-Time**: Polling 10 detik di `ThreadDetailPage` kini mendeteksi respons 404 — jika thread dihapus admin saat user aktif di halaman, muncul overlay full-screen merah dan redirect otomatis ke `/forum`.
 
 ---
 
