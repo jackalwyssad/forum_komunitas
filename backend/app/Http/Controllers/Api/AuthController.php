@@ -225,19 +225,25 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        // Delete old avatar if exists
+        // Hapus avatar lama jika ada
         if ($user->avatar) {
-            $oldPath = str_replace('/storage/', '', $user->avatar);
-            Storage::disk('public')->delete($oldPath);
+            // Avatar tersimpan sebagai full URL: https://domain.xyz/uploads/avatars/...
+            // Ubah ke relative path: avatars/filename.ext
+            $storageBaseUrl = Storage::disk('public')->url('');
+            $oldRelativePath = ltrim(str_replace($storageBaseUrl, '', $user->avatar), '/');
+            if ($oldRelativePath) {
+                Storage::disk('public')->delete($oldRelativePath);
+            }
         }
 
-        // Store new avatar
-        $file = $request->file('avatar');
+        // Store avatar baru
+        $file     = $request->file('avatar');
         $filename = 'avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('avatars', $filename, 'public');
+        $path     = $file->storeAs('avatars', $filename, 'public');
 
+        // Simpan full URL agar konsisten dengan thread/reply images
         $user->update([
-            'avatar' => '/storage/' . $path,
+            'avatar' => Storage::disk('public')->url($path),
         ]);
 
         return response()->json([
@@ -254,8 +260,11 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->avatar) {
-            $oldPath = str_replace('/storage/', '', $user->avatar);
-            Storage::disk('public')->delete($oldPath);
+            $storageBaseUrl = Storage::disk('public')->url('');
+            $oldRelativePath = ltrim(str_replace($storageBaseUrl, '', $user->avatar), '/');
+            if ($oldRelativePath) {
+                Storage::disk('public')->delete($oldRelativePath);
+            }
 
             $user->update(['avatar' => null]);
         }
