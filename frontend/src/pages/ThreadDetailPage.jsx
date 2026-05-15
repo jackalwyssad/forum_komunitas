@@ -290,6 +290,8 @@ export default function ThreadDetailPage() {
   // Modal alasan hapus (admin)
   const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null, title: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
+  // Banner thread dihapus admin
+  const [threadDeleted, setThreadDeleted] = useState(false);
   const repliesRef = useRef([]);
 
   const [photosUploading, setPhotosUploading] = useState(false);
@@ -330,7 +332,7 @@ export default function ThreadDetailPage() {
     return () => clearInterval(interval);
   }, [id]);
 
-  // Polling every 10s
+  // Polling every 10s — deteksi jika thread dihapus oleh admin
   useEffect(() => {
     if (!id) return;
     const poll = async () => {
@@ -343,7 +345,13 @@ export default function ThreadDetailPage() {
           setReplies((prev) => { const m = [...prev, ...newReplies]; repliesRef.current = m; return m; });
           setThread((prev) => prev ? ({ ...prev, replies_count: (prev.replies_count || 0) + newReplies.length }) : prev);
         }
-      } catch (_) {}
+      } catch (err) {
+        // Jika thread sudah dihapus (404), tampilkan banner dan redirect
+        if (err.response?.status === 404) {
+          setThreadDeleted(true);
+          setTimeout(() => navigate('/forum'), 4000);
+        }
+      }
     };
     const iv = setInterval(poll, 10000);
     return () => clearInterval(iv);
@@ -545,8 +553,40 @@ export default function ThreadDetailPage() {
   // Top-level replies only (no parent)
   const topReplies = replies.filter((r) => !r.parent_id);
 
-  if (loading) return <div className="loading"><div className="spinner"></div></div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
   if (!thread) return null;
+
+  // Banner overlay: thread dihapus admin saat user masih di halaman
+  if (threadDeleted) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(15,15,26,0.97)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: '16px', padding: '24px', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: '3rem' }}>🗑️</div>
+        <h2 style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 800 }}>Thread Telah Dihapus</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '400px', lineHeight: 1.6 }}>
+          Thread ini telah dihapus oleh Admin. Kamu akan dialihkan kembali ke halaman Forum secara otomatis.
+        </p>
+        <div style={{
+          padding: '10px 20px', borderRadius: '8px',
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+          color: '#ef4444', fontSize: '0.85rem', fontWeight: 600,
+        }}>
+          ⏳ Mengalihkan ke Forum dalam beberapa detik...
+        </div>
+        <button
+          className="btn btn-secondary"
+          onClick={() => navigate('/forum')}
+          style={{ marginTop: '8px' }}
+        >
+          ← Kembali ke Forum Sekarang
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="container main-content">
