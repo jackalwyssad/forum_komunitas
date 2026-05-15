@@ -80,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/threads/{thread}/like', [ThreadController::class, 'toggleLike']);
 
     // Replies
+    Route::get('/admin/replies', [ReplyController::class, 'adminIndex']);
     Route::post('/replies', [ReplyController::class, 'store']);
     Route::put('/replies/{reply}', [ReplyController::class, 'update']);
     Route::delete('/replies/{reply}', [ReplyController::class, 'destroy']);

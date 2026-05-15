@@ -4,6 +4,87 @@ import api, { STORAGE_URL } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+// ── Preset alasan hapus (admin) ─────────────────────────────────────────────
+const PRESET_REASONS = [
+  'Konten melanggar aturan komunitas',
+  'Spam atau iklan tidak sah',
+  'Konten tidak pantas / mengandung SARA',
+  'Duplikat thread yang sudah ada',
+  'Informasi palsu / hoaks',
+  'Lainnya',
+];
+
+// ── Modal Alasan Hapus ─────────────────────────────────────────────────────
+function DeleteReasonModal({ target, onConfirm, onCancel, loading }) {
+  const [selected, setSelected] = useState('');
+  const [custom, setCustom] = useState('');
+  const isOther = selected === 'Lainnya';
+  const finalReason = isOther ? custom.trim() : selected;
+  const canSubmit = selected && (!isOther || custom.trim().length > 0);
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>🗑</div>
+          <div>
+            <h2 className="modal-title" style={{ marginBottom: '2px' }}>Hapus Konten</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Alasan akan dikirim sebagai notifikasi ke pengguna</p>
+          </div>
+        </div>
+
+        <div style={{ margin: '14px 0', padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '2px' }}>
+            {target?.type === 'thread' ? '🧵 Thread' : '💬 Komentar'}
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {target?.title}
+          </p>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '12px' }}>
+          <label className="form-label">Pilih Alasan <span style={{ color: '#ef4444' }}>*</span></label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {PRESET_REASONS.map((r) => (
+              <button
+                key={r} type="button"
+                onClick={() => { setSelected(r); if (r !== 'Lainnya') setCustom(''); }}
+                style={{
+                  textAlign: 'left', padding: '10px 14px', borderRadius: '8px',
+                  border: `1.5px solid ${selected === r ? 'rgba(239,68,68,0.5)' : 'var(--border-color)'}`,
+                  background: selected === r ? 'rgba(239,68,68,0.08)' : 'transparent',
+                  color: selected === r ? '#ef4444' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.875rem',
+                  fontWeight: selected === r ? 600 : 400, transition: 'all 0.15s',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}
+              >
+                <span style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0, border: `2px solid ${selected === r ? '#ef4444' : 'var(--border-color)'}`, background: selected === r ? '#ef4444' : 'transparent', transition: 'all 0.15s' }} />
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isOther && (
+          <div className="form-group">
+            <label className="form-label">Tulis alasan spesifik <span style={{ color: '#ef4444' }}>*</span></label>
+            <textarea className="form-textarea" placeholder="Jelaskan alasan secara detail..." value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={400} rows={3} autoFocus />
+            <p className="form-hint">{custom.length}/400 karakter</p>
+          </div>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={loading}>Batal</button>
+          <button type="button" className="btn btn-danger" onClick={() => onConfirm(finalReason)} disabled={!canSubmit || loading}>
+            {loading ? 'Menghapus...' : '🗑 Hapus & Kirim Notifikasi'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const BASE_URL = STORAGE_URL;
 const getAvatarUrl = (a) => !a ? null : a.startsWith('http') ? a : BASE_URL + a;
 const MAX_IMAGES = 5;
@@ -206,6 +287,9 @@ export default function ThreadDetailPage() {
   const replyInputRef = useRef(null);
   const [confirmThread, setConfirmThread] = useState(false);
   const [confirmReply, setConfirmReply] = useState({ open: false, id: null });
+  // Modal alasan hapus (admin)
+  const [deleteModal, setDeleteModal] = useState({ open: false, type: null, id: null, title: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const repliesRef = useRef([]);
 
   const [photosUploading, setPhotosUploading] = useState(false);
@@ -322,10 +406,33 @@ export default function ThreadDetailPage() {
     finally { setReplyLoading(false); }
   };
 
-  const handleDeleteThread = () => setConfirmThread(true);
+  // Hapus thread — jika admin hapus thread orang lain, tampilkan modal alasan
+  const handleDeleteThread = () => {
+    const isOwnerDeleting = user?.id === thread?.user?.id;
+    if (isAdmin() && !isOwnerDeleting) {
+      setDeleteModal({ open: true, type: 'thread', id: thread.id, title: thread.title });
+    } else {
+      setConfirmThread(true);
+    }
+  };
+
   const confirmDeleteThread = async () => {
     setConfirmThread(false);
     try { await api.delete(`/threads/${id}`); navigate('/forum'); } catch {}
+  };
+
+  // Eksekusi hapus thread oleh admin (dengan reason)
+  const executeAdminDeleteThread = async (reason) => {
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/threads/${deleteModal.id}`, { data: { reason } });
+      setDeleteModal({ open: false, type: null, id: null, title: '' });
+      navigate('/forum');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menghapus thread.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const startEditThread = () => {
@@ -354,7 +461,18 @@ export default function ThreadDetailPage() {
     setEditRemoveIds((prev) => prev.includes(imgId) ? prev.filter((x) => x !== imgId) : [...prev, imgId]);
   };
 
-  const handleDeleteReply = (replyId) => setConfirmReply({ open: true, id: replyId });
+  // Hapus reply — jika admin hapus reply orang lain, tampilkan modal alasan
+  const handleDeleteReply = (replyId) => {
+    const targetReply = replies.find((r) => r.id === replyId);
+    const isOwnerDeleting = user?.id === targetReply?.user?.id;
+    if (isAdmin() && !isOwnerDeleting) {
+      const preview = targetReply?.content?.slice(0, 60) + (targetReply?.content?.length > 60 ? '...' : '');
+      setDeleteModal({ open: true, type: 'reply', id: replyId, title: preview || 'Komentar ini' });
+    } else {
+      setConfirmReply({ open: true, id: replyId });
+    }
+  };
+
   const confirmDeleteReply = async () => {
     const replyId = confirmReply.id;
     setConfirmReply({ open: false, id: null });
@@ -366,6 +484,25 @@ export default function ThreadDetailPage() {
       setThread((p) => ({ ...p, replies_count: Math.max((p.replies_count || toRemove.length) - toRemove.length, 0) }));
       window.dispatchEvent(new Event('notif-updated'));
     } catch {}
+  };
+
+  // Eksekusi hapus reply oleh admin (dengan reason)
+  const executeAdminDeleteReply = async (reason) => {
+    const replyId = deleteModal.id;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/replies/${replyId}`, { data: { reason } });
+      const getDesc = (pid) => { const kids = repliesRef.current.filter((r) => r.parent_id === pid).map((r) => r.id); return [...kids, ...kids.flatMap(getDesc)]; };
+      const toRemove = [replyId, ...getDesc(replyId)];
+      setReplies((prev) => { const f = prev.filter((r) => !toRemove.includes(r.id)); repliesRef.current = f; return f; });
+      setThread((p) => ({ ...p, replies_count: Math.max((p.replies_count || toRemove.length) - toRemove.length, 0) }));
+      setDeleteModal({ open: false, type: null, id: null, title: '' });
+      window.dispatchEvent(new Event('notif-updated'));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menghapus komentar.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const startEditReply = (reply) => {
@@ -614,6 +751,16 @@ export default function ThreadDetailPage() {
 
       <ConfirmDialog isOpen={confirmThread} title="Hapus Thread" message="Yakin ingin menghapus thread ini?" variant="danger" onConfirm={confirmDeleteThread} onCancel={() => setConfirmThread(false)} />
       <ConfirmDialog isOpen={confirmReply.open} title="Hapus Balasan" message="Yakin ingin menghapus balasan ini?" variant="danger" onConfirm={confirmDeleteReply} onCancel={() => setConfirmReply({ open: false, id: null })} />
+
+      {/* Modal Alasan Hapus — khusus admin hapus konten orang lain */}
+      {deleteModal.open && (
+        <DeleteReasonModal
+          target={deleteModal}
+          onConfirm={deleteModal.type === 'thread' ? executeAdminDeleteThread : executeAdminDeleteReply}
+          onCancel={() => setDeleteModal({ open: false, type: null, id: null, title: '' })}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }

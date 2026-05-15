@@ -69,6 +69,13 @@ export default function NotificationsPage() {
       navigate('/categories');
       return;
     }
+    // Thread dihapus: tidak navigate (thread sudah tidak ada)
+    if (notif.type === 'thread_deleted') return;
+    // Reply dihapus: navigate ke thread jika masih ada
+    if (notif.type === 'reply_deleted') {
+      if (notif.thread_id) navigate(`/threads/${notif.thread_id}`);
+      return;
+    }
     if (notif.thread_id) {
       navigate(`/threads/${notif.thread_id}`);
     }
@@ -82,6 +89,8 @@ export default function NotificationsPage() {
       case 'category_request_new':      return '💡';
       case 'category_request_approved': return '✅';
       case 'category_request_rejected': return '❌';
+      case 'thread_deleted':            return '🗑️';
+      case 'reply_deleted':             return '🗑️';
       default: return '🔔';
     }
   };
@@ -94,9 +103,13 @@ export default function NotificationsPage() {
       case 'category_request_new':      return 'Usulan Kategori';
       case 'category_request_approved': return 'Usulan Disetujui';
       case 'category_request_rejected': return 'Usulan Ditolak';
+      case 'thread_deleted':            return 'Thread Dihapus Admin';
+      case 'reply_deleted':             return 'Komentar Dihapus Admin';
       default: return 'Notifikasi';
     }
   };
+
+  const isDeletedByAdmin = (type) => type === 'thread_deleted' || type === 'reply_deleted';
 
   const formatTimeAgo = (dateStr) => {
     const now = new Date();
@@ -155,7 +168,9 @@ export default function NotificationsPage() {
                 id={`notif-${notif.id}`}
               >
                 <div className="notif-icon-wrapper">
-                  <span className="notif-icon">{getNotifIcon(notif.type)}</span>
+                  <span className="notif-icon"
+                    style={isDeletedByAdmin(notif.type) ? { background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' } : {}}
+                  >{getNotifIcon(notif.type)}</span>
                   {!notif.is_read && <span className="notif-unread-dot"></span>}
                 </div>
 
@@ -164,17 +179,42 @@ export default function NotificationsPage() {
                     {notif.sender?.avatar ? (
                       <img src={notif.sender.avatar} alt="" className="notif-sender-avatar" />
                     ) : (
-                      <div className="notif-sender-avatar-placeholder">
-                        {notif.sender?.name?.charAt(0).toUpperCase() || '?'}
+                      <div className="notif-sender-avatar-placeholder"
+                        style={isDeletedByAdmin(notif.type) ? { background: 'rgba(239,68,68,0.2)', color: '#ef4444' } : {}}
+                      >
+                        {isDeletedByAdmin(notif.type) ? '🛡️' : (notif.sender?.name?.charAt(0).toUpperCase() || '?')}
                       </div>
                     )}
-                    <span className="notif-sender-name">{notif.sender?.name}</span>
-                    <span className="notif-type-label">{getNotifTypeLabel(notif.type)}</span>
+                    <span className="notif-sender-name">
+                      {isDeletedByAdmin(notif.type) ? 'Admin' : notif.sender?.name}
+                    </span>
+                    <span className="notif-type-label"
+                      style={isDeletedByAdmin(notif.type) ? { background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' } : {}}
+                    >{getNotifTypeLabel(notif.type)}</span>
                   </div>
-                  <p className="notif-message">
-                    <strong>{notif.sender?.name}</strong> {notif.message}
-                  </p>
-                  {notif.thread && (
+
+                  {/* Tampilan khusus untuk notif hapus oleh admin */}
+                  {isDeletedByAdmin(notif.type) ? (
+                    <div style={{
+                      marginTop: '6px',
+                      padding: '10px 14px',
+                      background: 'rgba(239,68,68,0.07)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                    }}>
+                      <span style={{ color: '#ef4444', fontWeight: 700 }}>🗑️ Admin </span>
+                      {notif.message}
+                    </div>
+                  ) : (
+                    <p className="notif-message">
+                      <strong>{notif.sender?.name}</strong> {notif.message}
+                    </p>
+                  )}
+
+                  {notif.thread && !isDeletedByAdmin(notif.type) && (
                     <span className="notif-thread-title">📌 {notif.thread.title}</span>
                   )}
                   <span className="notif-time">{formatTimeAgo(notif.created_at)}</span>

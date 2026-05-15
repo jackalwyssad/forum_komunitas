@@ -14,6 +14,35 @@ use Illuminate\Http\Request;
 class ReplyController extends Controller
 {
     /**
+     * List semua replies untuk admin (paginated, searchable).
+     */
+    public function adminIndex(Request $request): JsonResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $query = Reply::with(['user', 'thread', 'images'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->has('search') && $request->search) {
+            $query->where('content', 'ilike', '%' . $request->search . '%');
+        }
+
+        $replies = $query->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'data' => ReplyResource::collection($replies),
+            'meta' => [
+                'current_page' => $replies->currentPage(),
+                'last_page'    => $replies->lastPage(),
+                'per_page'     => $replies->perPage(),
+                'total'        => $replies->total(),
+            ],
+        ]);
+    }
+
+    /**
      * Store a newly created reply (supports multiple image upload).
      */
     public function store(Request $request): JsonResponse
@@ -155,13 +184,38 @@ class ReplyController extends Controller
 
     /**
      * Remove the specified reply.
+     * Jika admin yang menghapus, reason wajib diisi dan notifikasi dikirim ke pemilik reply.
      */
     public function destroy(Request $request, string $id): JsonResponse
     {
-        $reply = Reply::findOrFail($id);
+        $reply = Reply::with(['user', 'thread'])->findOrFail($id);
+        $admin = $request->user();
+        $isOwner = $admin->id === $reply->user_id;
 
-        if ($request->user()->id !== $reply->user_id && !$request->user()->isAdmin()) {
+        if (!$isOwner && !$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Jika admin yang menghapus reply milik orang lain, reason wajib ada
+        if (!$isOwner && $admin->isAdmin()) {
+            $request->validate([
+                'reason' => 'required|string|max:500',
+            ], [
+                'reason.required' => 'Alasan penghapusan wajib diisi.',
+                'reason.max'      => 'Alasan maksimal 500 karakter.',
+            ]);
+
+            $threadTitle = $reply->thread?->title ?? 'thread';
+
+            // Kirim notifikasi ke pemilik reply
+            Notification::create([
+                'user_id'   => $reply->user_id,
+                'sender_id' => $admin->id,
+                'type'      => 'reply_deleted',
+                'message'   => "menghapus komentar Anda di \"" . mb_strimwidth($threadTitle, 0, 60, '...') . "\". Alasan: " . $request->reason,
+                'thread_id' => $reply->thread_id,
+                'reply_id'  => null, // reply sudah dihapus
+            ]);
         }
 
         $reply->delete();

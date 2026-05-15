@@ -193,13 +193,35 @@ class ThreadController extends Controller
 
     /**
      * Remove the specified thread.
+     * Jika admin yang menghapus, reason wajib diisi dan notifikasi dikirim ke pemilik thread.
      */
     public function destroy(Request $request, string $id): JsonResponse
     {
-        $thread = Thread::findOrFail($id);
+        $thread = Thread::with('user')->findOrFail($id);
+        $admin = $request->user();
+        $isOwner = $admin->id === $thread->user_id;
 
-        if ($request->user()->id !== $thread->user_id && !$request->user()->isAdmin()) {
+        if (!$isOwner && !$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Jika admin yang menghapus thread milik orang lain, reason wajib ada
+        if (!$isOwner && $admin->isAdmin()) {
+            $request->validate([
+                'reason' => 'required|string|max:500',
+            ], [
+                'reason.required' => 'Alasan penghapusan wajib diisi.',
+                'reason.max'      => 'Alasan maksimal 500 karakter.',
+            ]);
+
+            // Kirim notifikasi ke pemilik thread
+            Notification::create([
+                'user_id'   => $thread->user_id,
+                'sender_id' => $admin->id,
+                'type'      => 'thread_deleted',
+                'message'   => "menghapus thread Anda \"" . mb_strimwidth($thread->title, 0, 60, '...') . "\". Alasan: " . $request->reason,
+                'thread_id' => null, // thread sudah dihapus
+            ]);
         }
 
         $thread->delete();

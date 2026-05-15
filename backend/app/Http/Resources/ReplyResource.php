@@ -16,6 +16,10 @@ class ReplyResource extends JsonResource
             'content'    => $this->content,
             'user'       => new UserResource($this->whenLoaded('user')),
             'thread_id'  => $this->thread_id,
+            'thread'     => $this->whenLoaded('thread', fn() => $this->thread ? [
+                'id'    => $this->thread->id,
+                'title' => $this->thread->title,
+            ] : null),
             'parent_id'  => $this->parent_id,
             'reply_to'   => $this->whenLoaded('parent', function () {
                 return $this->parent ? [
