@@ -363,10 +363,13 @@ Body: {content: "...", parent_id: "uuid-reply-yang-dibalas"}
 | id | UUID PK | Primary key UUID |
 | name | string | Nama lengkap |
 | email | string UNIQUE | Email login |
+| email_verified_at | timestamp NULL | Waktu verifikasi email |
 | password | string | Bcrypt hash |
-| role | enum(admin,user) | Default: user |
-| avatar | string NULL | Path foto profil |
-| email_verified_at | timestamp NULL | Waktu verifikasi |
+| role | enum(admin, user) | Default: `user` |
+| avatar | string NULL | Path foto profil di storage |
+| remember_token | string NULL | Token "ingat saya" (Laravel default) |
+| created_at | timestamp | Waktu daftar |
+| updated_at | timestamp | Waktu update terakhir |
 
 **email_otps** — Data sementara registrasi (dihapus setelah OTP diverifikasi)
 | Kolom | Tipe | Keterangan |
@@ -376,70 +379,215 @@ Body: {content: "...", parent_id: "uuid-reply-yang-dibalas"}
 | email | string INDEX | Email calon user |
 | password | string | Password di-hash sementara |
 | otp | string(6) | Kode OTP 6 digit |
-| expires_at | timestamp | Kedaluwarsa (+10 menit) |
+| expires_at | timestamp | Kedaluwarsa (+10 menit dari dibuat) |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+**categories** — Kategori thread
+| Kolom | Tipe | Keterangan |
+|-------|------|-----------|
+| id | UUID PK | - |
+| name | string | Nama kategori |
+| description | text NULL | Deskripsi kategori |
+| is_public | boolean | Default: `true`. False = hanya login yang bisa lihat |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
 
 **threads** — Thread/diskusi utama
 | Kolom | Tipe | Keterangan |
 |-------|------|-----------|
 | id | UUID PK | - |
-| title | string | Judul thread |
+| title | string INDEX | Judul thread |
 | content | text | Isi thread |
-| user_id | UUID FK→users | Pembuat |
-| category_id | UUID FK→categories | Kategori |
-| status | string | published, dll |
+| user_id | UUID FK→users CASCADE | Pembuat thread |
+| category_id | UUID FK→categories CASCADE | Kategori thread |
+| status | string | `open` / `solved` / `closed` |
+| created_at | timestamp INDEX | - |
+| updated_at | timestamp | - |
 
-**replies** — Balasan (support threaded via parent_id)
+**thread_images** — Gambar lampiran thread
+| Kolom | Tipe | Keterangan |
+|-------|------|-----------|
+| id | bigint PK | Auto increment |
+| thread_id | UUID FK→threads CASCADE | Thread pemilik gambar |
+| path | string | Path file di storage `threads/` |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+**replies** — Balasan thread (support reply berantai via `parent_id`)
 | Kolom | Tipe | Keterangan |
 |-------|------|-----------|
 | id | UUID PK | - |
 | content | text | Isi balasan |
-| user_id | UUID FK→users | Pembuat |
-| thread_id | UUID FK→threads | Thread induk |
-| parent_id | UUID NULL FK→replies | Jika ada = reply dari reply |
+| user_id | UUID FK→users CASCADE | Pembuat balasan |
+| thread_id | UUID FK→threads CASCADE | Thread induk |
+| parent_id | UUID NULL FK→replies CASCADE | Jika diisi = balasan dari balasan (nested) |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+> `parent_id` adalah **self-referencing foreign key**. Jika NULL = balasan langsung ke thread. Jika diisi = balasan ke balasan lain (threaded). Saat reply parent dihapus, semua reply anaknya ikut terhapus (cascade).
+
+**reply_images** — Gambar lampiran balasan
+| Kolom | Tipe | Keterangan |
+|-------|------|-----------|
+| id | bigint PK | Auto increment |
+| reply_id | UUID FK→replies CASCADE | Reply pemilik gambar |
+| path | string | Path file di storage `replies/` |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+**likes** — Like thread oleh user
+| Kolom | Tipe | Keterangan |
+|-------|------|-----------|
+| id | bigint PK | Auto increment |
+| user_id | UUID FK→users CASCADE | User yang like |
+| thread_id | UUID FK→threads CASCADE | Thread yang di-like |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+> UNIQUE constraint pada `(user_id, thread_id)` — satu user hanya bisa like satu thread sekali.
 
 **notifications** — Notifikasi in-app
 | Kolom | Tipe | Keterangan |
 |-------|------|-----------|
 | id | UUID PK | - |
-| user_id | UUID FK→users | Penerima notifikasi |
-| sender_id | UUID FK→users | Pemicu notifikasi |
-| type | string | reply_thread, reply_reply, category_request_update |
-| message | text | Teks notifikasi |
-| thread_id | UUID NULL | Thread terkait |
-| reply_id | UUID NULL set-null | Reply terkait |
-| read_at | timestamp NULL | NULL = belum dibaca |
+| user_id | UUID FK→users CASCADE | **Penerima** notifikasi |
+| sender_id | UUID FK→users CASCADE | **Pengirim** / pemicu notifikasi |
+| type | string | `reply_thread`, `reply_reply`, `thread_liked`, `thread_deleted`, `reply_deleted`, `category_request_new`, `category_request_approved`, `category_request_rejected` |
+| message | text | Teks notifikasi siap tampil |
+| thread_id | UUID NULL FK→threads CASCADE | Thread terkait (jika ada) |
+| reply_id | UUID NULL FK→replies SET NULL | Reply terkait (diset NULL jika reply dihapus) |
+| read_at | timestamp NULL | `NULL` = belum dibaca, diisi = sudah dibaca |
+| created_at | timestamp INDEX | - |
+| updated_at | timestamp | - |
 
-**category_requests** — Pengajuan kategori dari user
+**category_requests** — Pengajuan kategori baru dari user
 | Kolom | Tipe | Keterangan |
 |-------|------|-----------|
 | id | UUID PK | - |
 | user_id | UUID FK→users | Pengaju |
 | name | string | Nama usulan kategori |
 | description | text NULL | Deskripsi usulan |
-| status | string | pending / approved / rejected |
-| admin_note | text NULL | Catatan penolakan dari admin |
+| status | string | `pending` / `approved` / `rejected` |
+| admin_note | text NULL | Catatan admin saat menolak |
+| created_at | timestamp | - |
+| updated_at | timestamp | - |
+
+---
 
 ### Diagram ERD
 
-```
-USERS (1) ──────< THREADS (many)
-  |                    |
-  |            ┌───────┤
-  |            |       |
-  |          THREAD_IMAGES   REPLIES (many, self-ref via parent_id)
-  |                          |
-  |                      REPLY_IMAGES
-  |
-  +─────< LIKES (many)
-  |
-  +─────< CATEGORY_REQUESTS (many)
-  |
-  +─────< NOTIFICATIONS [user_id penerima, sender_id pengirim]
+```mermaid
+erDiagram
+    users {
+        uuid id PK
+        string name
+        string email
+        string password
+        enum role "admin|user"
+        string avatar "nullable"
+        timestamp email_verified_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
 
-CATEGORIES (1) ──< THREADS (many)
+    email_otps {
+        bigint id PK
+        string name
+        string email
+        string password
+        string otp
+        timestamp expires_at
+    }
+
+    categories {
+        uuid id PK
+        string name
+        text description "nullable"
+        boolean is_public
+    }
+
+    threads {
+        uuid id PK
+        string title
+        text content
+        uuid user_id FK
+        uuid category_id FK
+        string status "open|solved|closed"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    thread_images {
+        bigint id PK
+        uuid thread_id FK
+        string path
+    }
+
+    replies {
+        uuid id PK
+        text content
+        uuid user_id FK
+        uuid thread_id FK
+        uuid parent_id FK "nullable - self ref"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    reply_images {
+        bigint id PK
+        uuid reply_id FK
+        string path
+    }
+
+    likes {
+        bigint id PK
+        uuid user_id FK
+        uuid thread_id FK
+    }
+
+    notifications {
+        uuid id PK
+        uuid user_id FK "penerima"
+        uuid sender_id FK "pengirim"
+        string type
+        text message
+        uuid thread_id FK "nullable"
+        uuid reply_id FK "nullable"
+        timestamp read_at "nullable"
+        timestamp created_at
+    }
+
+    category_requests {
+        uuid id PK
+        uuid user_id FK
+        string name
+        text description "nullable"
+        string status "pending|approved|rejected"
+        text admin_note "nullable"
+    }
+
+    users ||--o{ threads : "membuat"
+    users ||--o{ replies : "menulis"
+    users ||--o{ likes : "menyukai"
+    users ||--o{ notifications : "menerima (user_id)"
+    users ||--o{ notifications : "mengirim (sender_id)"
+    users ||--o{ category_requests : "mengajukan"
+
+    categories ||--o{ threads : "mengkategorikan"
+
+    threads ||--o{ replies : "memiliki"
+    threads ||--o{ thread_images : "memiliki gambar"
+    threads ||--o{ likes : "mendapat"
+    threads ||--o{ notifications : "terkait di"
+
+    replies ||--o{ replies : "parent_id (balasan berantai)"
+    replies ||--o{ reply_images : "memiliki gambar"
+    replies ||--o{ notifications : "terkait di"
 ```
 
 ---
+
 
 ## 📡 API Endpoints Lengkap
 

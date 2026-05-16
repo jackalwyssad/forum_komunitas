@@ -3205,6 +3205,21 @@ img {
   color: #fff;
   box-shadow: 0 2px 8px #6366f14d;
 }
+.fp-cat-sort {
+  margin-left: auto;
+  border-style: dashed;
+  font-size: 0.72rem;
+  letter-spacing: 0.3px;
+  opacity: 0.75;
+  transition: all 0.2s;
+}
+.fp-cat-sort:hover {
+  opacity: 1;
+  border-color: var(--primary-400);
+  color: var(--primary-400);
+  border-style: solid;
+  background: #6366f10f;
+}
 .fp-list {
   display: flex;
   flex-direction: column;

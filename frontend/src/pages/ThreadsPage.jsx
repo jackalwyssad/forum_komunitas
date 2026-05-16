@@ -59,6 +59,8 @@ function SkeletonCard() {
   );
 }
 
+// ✏️ EDIT DI SINI — Atur urutan kategori: isi dengan 'A-Z' atau 'Z-A'
+const CATEGORY_SORT_ORDER = 'A-Z';
 export default function ThreadsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -133,7 +135,13 @@ export default function ThreadsPage() {
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
-      setCategories(res.data.data);
+      const data = res.data.data || [];
+      // Sort otomatis berdasarkan CATEGORY_SORT_ORDER ('A-Z' atau 'Z-A')
+      setCategories([...data].sort((a, b) => 
+        CATEGORY_SORT_ORDER === 'A-Z' 
+          ? a.name.localeCompare(b.name) 
+          : b.name.localeCompare(a.name)
+      ));
     } catch (err) { console.error(err); }
   };
 
@@ -222,6 +230,7 @@ export default function ThreadsPage() {
               {cat.name}
             </button>
           ))}
+
         </div>
 
         {/* ── Thread List ── */}
